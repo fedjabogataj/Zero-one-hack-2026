@@ -152,3 +152,29 @@ def test_confusion_matrix_dict_has_tp_fp_fn_tn():
     gt = pd.DataFrame([{"EXAMPLE_ID": "a", "IS_VALID": 1, "RULE_VIOLATED": ""}])
     cm = confusion_matrix_dict(preds, gt)
     assert set(cm.keys()) == {"tp", "fp", "fn", "tn"}
+
+
+import json
+from infineon_baseline.metrics import report
+
+
+def test_report_task1_returns_dict_with_aggregate_and_family_breakdowns(tmp_path):
+    preds = pd.DataFrame([
+        {"EXAMPLE_ID": "valid_mosfet_a_60", "FAMILY": "mosfet",
+         "RANK_1": "X", "RANK_2": "Y", "RANK_3": "Z", "RANK_4": "Q", "RANK_5": "R"},
+        {"EXAMPLE_ID": "valid_igbt_b_60", "FAMILY": "igbt",
+         "RANK_1": "Y", "RANK_2": "Z", "RANK_3": "X", "RANK_4": "Q", "RANK_5": "R"},
+    ])
+    gt = pd.DataFrame([
+        {"EXAMPLE_ID": "valid_mosfet_a_60", "FAMILY": "mosfet", "NEXT_STEP": "Y"},
+        {"EXAMPLE_ID": "valid_igbt_b_60",   "FAMILY": "igbt",   "NEXT_STEP": "Y"},
+    ])
+    rep = report(task="next-step", predictions=preds, ground_truth=gt)
+    assert "overall" in rep and "per_family" in rep
+    assert "top_1_accuracy" in rep["overall"]
+    assert "mosfet" in rep["per_family"]
+    out = tmp_path / "report.json"
+    out.write_text(json.dumps(rep))
+    # Sanity: re-read produces same dict
+    import json as _json
+    assert _json.loads(out.read_text()) == rep

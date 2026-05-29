@@ -213,3 +213,87 @@ def rule_attribution_accuracy(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
         return 0.0
     matches = (both_invalid["PREDICTED_RULE"] == both_invalid["RULE_VIOLATED"]).sum()
     return float(matches) / len(both_invalid)
+
+
+# --------------------------------------------------------------------------- #
+# report() with per-family breakdown + console table                          #
+# --------------------------------------------------------------------------- #
+def _compute_task1(p: pd.DataFrame, g: pd.DataFrame) -> dict:
+    return {
+        "top_1_accuracy": top_k_accuracy(p, g, 1),
+        "top_3_accuracy": top_k_accuracy(p, g, 3),
+        "top_5_accuracy": top_k_accuracy(p, g, 5),
+        "mrr": mrr(p, g),
+        "n": len(p),
+    }
+
+
+def _compute_task2(p: pd.DataFrame, g: pd.DataFrame) -> dict:
+    return {
+        "exact_match_rate": exact_match_rate(p, g),
+        "normalized_edit_distance": normalized_edit_distance(p, g),
+        "token_accuracy": token_accuracy(p, g),
+        "block_accuracy": block_accuracy(p, g),
+        "n": len(p),
+    }
+
+
+def _compute_task3(p: pd.DataFrame, g: pd.DataFrame) -> dict:
+    out = {
+        "binary_accuracy": binary_accuracy(p, g),
+        "precision": precision(p, g),
+        "recall": recall(p, g),
+        "f1": f1(p, g),
+        "confusion": confusion_matrix_dict(p, g),
+        "rule_attribution_accuracy": rule_attribution_accuracy(p, g),
+        "n": len(p),
+    }
+    try:
+        out["roc_auc"] = roc_auc(p, g)
+    except Exception:
+        out["roc_auc"] = float("nan")
+    return out
+
+
+_TASK_DISPATCH = {
+    "next-step": _compute_task1,
+    "complete":  _compute_task2,
+    "anomaly":   _compute_task3,
+}
+
+
+def report(task: str, predictions: pd.DataFrame, ground_truth: pd.DataFrame) -> dict:
+    """Compute the metric dict with overall + per-family breakdowns."""
+    if task not in _TASK_DISPATCH:
+        raise ValueError(f"unknown task {task!r}; expected one of {sorted(_TASK_DISPATCH)}")
+    compute = _TASK_DISPATCH[task]
+    overall = compute(predictions, ground_truth)
+    per_family: dict[str, dict] = {}
+    if "FAMILY" in predictions.columns and "FAMILY" in ground_truth.columns:
+        for family, p_sub in predictions.groupby("FAMILY"):
+            g_sub = ground_truth[ground_truth["FAMILY"] == family]
+            if len(p_sub) == 0:
+                continue
+            per_family[str(family)] = compute(p_sub, g_sub)
+    rep = {"task": task, "overall": overall, "per_family": per_family}
+    _print_table(rep)
+    return rep
+
+
+def _print_table(rep: dict) -> None:
+    """Pretty-print a metrics dict to stdout."""
+    print(f"\nTASK: {rep['task']}")
+    print("-" * 78)
+    overall = rep["overall"]
+    keys = [k for k in overall if k not in ("n", "confusion")]
+    header = f"{'metric':32s}" + "".join(f"{fam:>10s}" for fam in sorted(rep["per_family"])) + f"{'ALL':>10s}"
+    print(header)
+    for key in keys:
+        row = f"{key:32s}"
+        for fam in sorted(rep["per_family"]):
+            val = rep["per_family"][fam].get(key, float("nan"))
+            row += f"{val:10.3f}" if isinstance(val, (int, float)) else f"{'-':>10s}"
+        val = overall.get(key, float("nan"))
+        row += f"{val:10.3f}" if isinstance(val, (int, float)) else f"{'-':>10s}"
+        print(row)
+    print(f"n: {overall['n']}")
