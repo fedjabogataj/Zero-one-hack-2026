@@ -217,7 +217,9 @@ __marimo__/
 # ─────────────────────────────────────────────────────────────────────
 
 # Project outputs (per design spec; never commit eval/model/submission artifacts)
-outputs/
+# The directory itself is tracked (via .gitkeep); only the contents are ignored.
+outputs/*
+!outputs/.gitkeep
 
 # Claude Code local settings (per-user permissions; not for sharing)
 .claude/
