@@ -90,3 +90,59 @@ def test_inject_violation_returns_modified_copy_not_in_place():
     corrupted, _ = inject_violation(base, "RULE_DEP_NO_CLEAN", rng=Random(0))
     assert base == snapshot, "input must not be mutated"
     assert corrupted is not base
+
+
+import csv
+
+from infineon_baseline.eval_set import (
+    build_valid_eval_inputs,
+    build_anomaly_eval_inputs,
+    write_eval_inputs_valid,
+    write_eval_inputs_anomaly,
+    write_ground_truth_valid,
+    write_ground_truth_anomaly,
+)
+
+
+def test_build_valid_eval_inputs_has_correct_row_count():
+    _, hold = split(MINI_DATASET, holdout_per_family=4, seed=42)
+    rows = build_valid_eval_inputs(hold, seqs_per_family=4, fractions=(0.6, 0.8))
+    # 4 families × seqs × 2 cuts -- here 3 families × 4 × 2 = 24
+    assert len(rows) == 3 * 4 * 2
+
+
+def test_build_valid_row_format():
+    _, hold = split(MINI_DATASET, holdout_per_family=2, seed=42)
+    rows = build_valid_eval_inputs(hold, seqs_per_family=2, fractions=(0.6,))
+    r = rows[0]
+    assert {"EXAMPLE_ID", "FAMILY", "COMPLETION_FRACTION", "PARTIAL_SEQUENCE"} <= r.keys()
+    assert "|" in r["PARTIAL_SEQUENCE"]
+
+
+def test_build_anomaly_eval_inputs_invalid_ratio_is_close_to_target():
+    _, hold = split(MINI_DATASET, holdout_per_family=8, seed=42)
+    rows = build_anomaly_eval_inputs(hold, seqs_per_family=8, invalid_ratio=0.5, seed=42)
+    n_invalid = sum(1 for r in rows if r["_is_invalid"])
+    # 8 × 3 = 24 total, invalid_ratio 0.5 → ~12.
+    assert abs(n_invalid - 12) <= 3
+
+
+def test_write_eval_inputs_valid_csv_round_trip(tmp_path):
+    _, hold = split(MINI_DATASET, holdout_per_family=2, seed=42)
+    rows = build_valid_eval_inputs(hold, seqs_per_family=2, fractions=(0.6, 0.8))
+    out = tmp_path / "eval_input_valid.csv"
+    write_eval_inputs_valid(rows, out)
+    with out.open(newline="") as f:
+        readback = list(csv.DictReader(f))
+    assert readback[0]["FAMILY"] in {"mosfet", "igbt", "ic"}
+    assert "|" in readback[0]["PARTIAL_SEQUENCE"]
+
+
+def test_write_ground_truth_anomaly_columns(tmp_path):
+    _, hold = split(MINI_DATASET, holdout_per_family=2, seed=42)
+    rows = build_anomaly_eval_inputs(hold, seqs_per_family=2, invalid_ratio=0.5, seed=42)
+    out = tmp_path / "gt_anomaly.csv"
+    write_ground_truth_anomaly(rows, out)
+    with out.open(newline="") as f:
+        readback = list(csv.DictReader(f))
+    assert set(readback[0].keys()) == {"EXAMPLE_ID", "IS_VALID", "RULE_VIOLATED"}

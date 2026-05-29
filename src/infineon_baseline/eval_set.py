@@ -246,3 +246,111 @@ _INJECTORS = {
     "RULE_SHIP_BEFORE_TEST": _swap_ship_before_sort,
     "RULE_BACKSIDE_BEFORE_PASSIVATION": _move_backside_before_cure,
 }
+
+
+import csv
+from pathlib import Path
+
+
+def build_valid_eval_inputs(
+    holdout: SequencesByFamily,
+    seqs_per_family: int,
+    fractions: tuple[float, ...] = (0.6, 0.8),
+) -> list[dict]:
+    """Build rows for `eval_input_valid.csv` plus a stashed full-sequence ground truth."""
+    rows: list[dict] = []
+    for family in sorted(holdout):
+        seq_ids = sorted(holdout[family].keys())[:seqs_per_family]
+        for sid in seq_ids:
+            full = holdout[family][sid]
+            for frac in fractions:
+                cut = truncate(full, fraction=frac)
+                rows.append({
+                    "EXAMPLE_ID": f"valid_{family}_{sid}_{int(frac*100):02d}",
+                    "FAMILY": family,
+                    "COMPLETION_FRACTION": f"{frac:.2f}",
+                    "PARTIAL_SEQUENCE": "|".join(cut.partial),
+                    "_full_sequence": full,         # stashed for ground-truth writer
+                    "_cut_index": cut.cut_index,
+                })
+    return rows
+
+
+def build_anomaly_eval_inputs(
+    holdout: SequencesByFamily,
+    seqs_per_family: int,
+    invalid_ratio: float,
+    seed: int,
+) -> list[dict]:
+    """Build rows for `eval_input_anomaly.csv` with `invalid_ratio` of them corrupted."""
+    rng = Random(seed)
+    rows: list[dict] = []
+    for family in sorted(holdout):
+        seq_ids = sorted(holdout[family].keys())[:seqs_per_family]
+        n_invalid = round(len(seq_ids) * invalid_ratio)
+        rng.shuffle(seq_ids)
+        invalid_ids = set(seq_ids[:n_invalid])
+        for sid in sorted(holdout[family]):           # iterate in sorted order for determinism
+            if sid not in seq_ids:
+                continue
+            full = list(holdout[family][sid])
+            if sid in invalid_ids:
+                rule = SUPPORTED_RULES[rng.randint(0, len(SUPPORTED_RULES) - 1)]
+                try:
+                    corrupted, applied = inject_violation(full, rule, rng=rng)
+                except RuntimeError:
+                    # This particular sequence can't host this rule; pick another.
+                    for fallback in SUPPORTED_RULES:
+                        try:
+                            corrupted, applied = inject_violation(full, fallback, rng=rng)
+                            break
+                        except RuntimeError:
+                            continue
+                    else:
+                        # As a last resort, keep it valid.
+                        corrupted, applied = full, ""
+                seq, is_invalid, applied_rule = corrupted, True, applied
+            else:
+                seq, is_invalid, applied_rule = full, False, ""
+            rows.append({
+                "EXAMPLE_ID": f"anom_{family}_{sid}",
+                "FAMILY": family,
+                "SEQUENCE": "|".join(seq),
+                "_is_invalid": is_invalid,
+                "_applied_rule": applied_rule,
+            })
+    rng.shuffle(rows)
+    return rows
+
+
+def _write_csv(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(rows)
+
+
+def write_eval_inputs_valid(rows: list[dict], path: Path) -> None:
+    _write_csv(path, ["EXAMPLE_ID", "FAMILY", "COMPLETION_FRACTION", "PARTIAL_SEQUENCE"], rows)
+
+
+def write_eval_inputs_anomaly(rows: list[dict], path: Path) -> None:
+    _write_csv(path, ["EXAMPLE_ID", "FAMILY", "SEQUENCE"], rows)
+
+
+def write_ground_truth_valid(rows: list[dict], path: Path) -> None:
+    gt_rows = [
+        {"EXAMPLE_ID": r["EXAMPLE_ID"], "FULL_SEQUENCE": "|".join(r["_full_sequence"]), "CUT_INDEX": r["_cut_index"]}
+        for r in rows
+    ]
+    _write_csv(path, ["EXAMPLE_ID", "FULL_SEQUENCE", "CUT_INDEX"], gt_rows)
+
+
+def write_ground_truth_anomaly(rows: list[dict], path: Path) -> None:
+    gt_rows = [
+        {"EXAMPLE_ID": r["EXAMPLE_ID"], "IS_VALID": 0 if r["_is_invalid"] else 1, "RULE_VIOLATED": r["_applied_rule"]}
+        for r in rows
+    ]
+    _write_csv(path, ["EXAMPLE_ID", "IS_VALID", "RULE_VIOLATED"], gt_rows)
