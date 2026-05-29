@@ -42,3 +42,25 @@ def test_top_k_for_unknown_family_returns_empty():
 def test_fit_returns_self_for_chaining():
     m = NGram(order=2)
     assert m.fit(_toy_corpus()) is m
+
+
+import math
+
+
+def test_log_prob_is_higher_for_seen_sequence():
+    model = NGram(order=2).fit(_toy_corpus())
+    seen = [0, 1, 2, 3, 4]
+    unseen = [4, 3, 2, 1, 0]  # reverse — never seen as transitions
+    assert model.log_prob("mosfet", seen) > model.log_prob("mosfet", unseen)
+
+
+def test_log_prob_is_finite_for_completely_unseen_transitions():
+    model = NGram(order=2).fit(_toy_corpus())
+    # Sequence of unknown ids — stupid backoff falls to unigram, which uses a floor.
+    val = model.log_prob("mosfet", [42, 43, 44])
+    assert math.isfinite(val)
+
+
+def test_log_prob_for_unknown_family_is_minus_inf():
+    model = NGram(order=2).fit(_toy_corpus())
+    assert model.log_prob("unknown_family", [0, 1, 2]) == float("-inf")
