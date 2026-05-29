@@ -65,3 +65,17 @@ def test_calibrate_threshold_returns_finite_float():
                              tokenizer=tok, ngram=ng)
     import math
     assert math.isfinite(th)
+
+
+from infineon_baseline.anomaly import detect_hybrid
+
+
+def test_hybrid_uses_oracle_for_decision_and_perplexity_for_score():
+    tok, ng = _fit_mini_ngram()
+    valid = MINI_DATASET["mosfet"]["mosfet_0001"]
+    res = detect_hybrid(valid, "mosfet", tok, ng, threshold=-50.0)
+    # Oracle says valid → is_valid=1 and predicted_rule="" (regardless of perplexity score range).
+    assert res.is_valid == 1
+    assert res.predicted_rule == ""
+    # Score should be a real probability in [0,1] from perplexity, not the constant 1.0 from the oracle alone.
+    assert 0.0 <= res.score <= 1.0

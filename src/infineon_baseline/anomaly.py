@@ -82,3 +82,20 @@ def calibrate_threshold(
         if f1 > best_f1:
             best_f1, best_th = f1, th
     return best_th
+
+
+def detect_hybrid(
+    steps: list[str],
+    family: str,
+    tokenizer,
+    ngram,
+    threshold: float,
+) -> AnomalyResult:
+    """Oracle determines is_valid + predicted_rule; perplexity provides the continuous score."""
+    oracle = detect_oracle(steps)
+    perp = detect_perplexity(steps, family, tokenizer, ngram, threshold)
+    return AnomalyResult(
+        is_valid=oracle.is_valid,
+        score=perp.score,
+        predicted_rule=oracle.predicted_rule,
+    )
