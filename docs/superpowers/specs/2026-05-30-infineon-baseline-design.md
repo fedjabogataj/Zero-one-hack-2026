@@ -237,8 +237,13 @@ Ground-truth companions (never seen by the model):
 - `ground_truth_anomaly.csv`: `EXAMPLE_ID, IS_VALID, RULE_VIOLATED`
 
 One injector function per rule; the 10 rules are dispatched from a registry dict.
-Each injector must produce a sequence where `validate_sequence` returns exactly
-one violation matching the requested rule. The verification is enforced in code.
+Each injector must produce a sequence where `validate_sequence` returns **at least
+one violation matching the requested rule**. Cascading violations are tolerated
+(e.g. deleting the DEVELOP before a metal etch may trigger both
+`RULE_ETCH_NO_MASK` and `RULE_METAL_ETCH_NO_LITHO`); we record the requested
+rule as the ground truth. The verification — round-tripping each injection
+through `validate_sequence` — is enforced in code. If `max_attempts` injections
+all fail to trigger the target rule, the injector raises `RuntimeError`.
 
 ### 5.4 `ngram.py`
 
