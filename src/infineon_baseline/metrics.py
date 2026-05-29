@@ -138,3 +138,78 @@ def block_accuracy(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
             if a == b:
                 correct += 1
     return correct / total if total else 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Task 3 metrics                                                              #
+# --------------------------------------------------------------------------- #
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix as _sk_confusion,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+
+
+def _binarize_invalid(df: pd.DataFrame) -> pd.Series:
+    """Return Series of 1 = invalid (positive class), 0 = valid."""
+    return (df["IS_VALID"] == 0).astype(int)
+
+
+def binary_accuracy(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    y_pred = (merged["IS_VALID_pred"] == 0).astype(int)
+    y_true = (merged["IS_VALID_gt"] == 0).astype(int)
+    return float(accuracy_score(y_true, y_pred))
+
+
+def precision(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    y_pred = (merged["IS_VALID_pred"] == 0).astype(int)
+    y_true = (merged["IS_VALID_gt"] == 0).astype(int)
+    return float(precision_score(y_true, y_pred, zero_division=0))
+
+
+def recall(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    y_pred = (merged["IS_VALID_pred"] == 0).astype(int)
+    y_true = (merged["IS_VALID_gt"] == 0).astype(int)
+    return float(recall_score(y_true, y_pred, zero_division=0))
+
+
+def f1(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    y_pred = (merged["IS_VALID_pred"] == 0).astype(int)
+    y_true = (merged["IS_VALID_gt"] == 0).astype(int)
+    return float(f1_score(y_true, y_pred, zero_division=0))
+
+
+def confusion_matrix_dict(preds: pd.DataFrame, gt: pd.DataFrame) -> dict[str, int]:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    y_pred = (merged["IS_VALID_pred"] == 0).astype(int)
+    y_true = (merged["IS_VALID_gt"] == 0).astype(int)
+    cm = _sk_confusion(y_true, y_pred, labels=[0, 1])
+    tn, fp, fn, tp = cm.ravel()
+    return {"tp": int(tp), "fp": int(fp), "fn": int(fn), "tn": int(tn)}
+
+
+def roc_auc(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    y_true = (merged["IS_VALID_gt"] == 0).astype(int)
+    # Higher SCORE = more confident this row is VALID. To predict the invalid class,
+    # use 1 - SCORE as the positive-class likelihood.
+    y_score = 1.0 - merged["SCORE"].astype(float)
+    if y_true.nunique() < 2:
+        return float("nan")
+    return float(roc_auc_score(y_true, y_score))
+
+
+def rule_attribution_accuracy(preds: pd.DataFrame, gt: pd.DataFrame) -> float:
+    merged = preds.merge(gt, on="EXAMPLE_ID", suffixes=("_pred", "_gt"))
+    both_invalid = merged[(merged["IS_VALID_pred"] == 0) & (merged["IS_VALID_gt"] == 0)]
+    if len(both_invalid) == 0:
+        return 0.0
+    matches = (both_invalid["PREDICTED_RULE"] == both_invalid["RULE_VIOLATED"]).sum()
+    return float(matches) / len(both_invalid)

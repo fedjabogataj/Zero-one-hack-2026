@@ -80,3 +80,75 @@ def test_step_to_block_covers_basic_categories():
     assert STEP_TO_BLOCK["IMPLANT WELL"] == "IMPLANT"
     assert STEP_TO_BLOCK["WAFER SORT TEST"] == "TEST"
     assert STEP_TO_BLOCK["SHIP LOT"] == "LOGISTICS"
+
+
+from infineon_baseline.metrics import (
+    binary_accuracy, precision, recall, f1, confusion_matrix_dict,
+    roc_auc, rule_attribution_accuracy,
+)
+
+
+def test_binary_accuracy_simple():
+    preds = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 1, "SCORE": 0.9, "PREDICTED_RULE": ""},
+        {"EXAMPLE_ID": "b", "IS_VALID": 0, "SCORE": 0.1, "PREDICTED_RULE": "RULE_X"},
+    ])
+    gt = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 1, "RULE_VIOLATED": ""},
+        {"EXAMPLE_ID": "b", "IS_VALID": 1, "RULE_VIOLATED": ""},  # mispredicted
+    ])
+    assert binary_accuracy(preds, gt) == 0.5
+
+
+def test_precision_recall_f1_consistency():
+    # 1 TP, 1 FP, 1 FN  → P=0.5, R=0.5, F1=0.5
+    preds = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 0, "SCORE": 0.1, "PREDICTED_RULE": "X"},  # TP (correctly invalid)
+        {"EXAMPLE_ID": "b", "IS_VALID": 0, "SCORE": 0.2, "PREDICTED_RULE": "X"},  # FP
+        {"EXAMPLE_ID": "c", "IS_VALID": 1, "SCORE": 0.9, "PREDICTED_RULE": ""},   # FN (truly invalid)
+    ])
+    gt = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 0, "RULE_VIOLATED": "X"},
+        {"EXAMPLE_ID": "b", "IS_VALID": 1, "RULE_VIOLATED": ""},
+        {"EXAMPLE_ID": "c", "IS_VALID": 0, "RULE_VIOLATED": "Y"},
+    ])
+    # Positive class = invalid (IS_VALID==0).
+    assert precision(preds, gt) == 0.5
+    assert recall(preds, gt) == 0.5
+    assert abs(f1(preds, gt) - 0.5) < 1e-9
+
+
+def test_roc_auc_uses_score_column():
+    preds = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 1, "SCORE": 0.9, "PREDICTED_RULE": ""},
+        {"EXAMPLE_ID": "b", "IS_VALID": 0, "SCORE": 0.1, "PREDICTED_RULE": "X"},
+        {"EXAMPLE_ID": "c", "IS_VALID": 1, "SCORE": 0.8, "PREDICTED_RULE": ""},
+        {"EXAMPLE_ID": "d", "IS_VALID": 0, "SCORE": 0.2, "PREDICTED_RULE": "X"},
+    ])
+    gt = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 1, "RULE_VIOLATED": ""},
+        {"EXAMPLE_ID": "b", "IS_VALID": 0, "RULE_VIOLATED": "X"},
+        {"EXAMPLE_ID": "c", "IS_VALID": 1, "RULE_VIOLATED": ""},
+        {"EXAMPLE_ID": "d", "IS_VALID": 0, "RULE_VIOLATED": "X"},
+    ])
+    # Perfect separation by SCORE → AUC = 1.0
+    assert roc_auc(preds, gt) == 1.0
+
+
+def test_rule_attribution_accuracy():
+    preds = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 0, "SCORE": 0.1, "PREDICTED_RULE": "RULE_X"},
+        {"EXAMPLE_ID": "b", "IS_VALID": 0, "SCORE": 0.1, "PREDICTED_RULE": "RULE_X"},
+    ])
+    gt = pd.DataFrame([
+        {"EXAMPLE_ID": "a", "IS_VALID": 0, "RULE_VIOLATED": "RULE_X"},  # correct
+        {"EXAMPLE_ID": "b", "IS_VALID": 0, "RULE_VIOLATED": "RULE_Y"},  # incorrect
+    ])
+    assert rule_attribution_accuracy(preds, gt) == 0.5
+
+
+def test_confusion_matrix_dict_has_tp_fp_fn_tn():
+    preds = pd.DataFrame([{"EXAMPLE_ID": "a", "IS_VALID": 1, "SCORE": 0.9, "PREDICTED_RULE": ""}])
+    gt = pd.DataFrame([{"EXAMPLE_ID": "a", "IS_VALID": 1, "RULE_VIOLATED": ""}])
+    cm = confusion_matrix_dict(preds, gt)
+    assert set(cm.keys()) == {"tp", "fp", "fn", "tn"}
