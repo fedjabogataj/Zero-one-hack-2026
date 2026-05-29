@@ -63,3 +63,20 @@ def test_run_task2_completes_until_ship_lot_or_cap():
     # First predicted step must not echo the last seen step (no immediate repetition trap).
     # Completion does NOT include the partial sequence.
     assert "RECEIVE WAFER LOT" not in completion or completion.index("RECEIVE WAFER LOT") > 0
+
+
+from infineon_baseline.predictor import run_task3, Task3Row
+
+
+def test_run_task3_emits_anomaly_rows_with_required_fields():
+    tok, ng = _fitted()
+    examples = [{
+        "EXAMPLE_ID": "z1",
+        "FAMILY": "mosfet",
+        "SEQUENCE": "|".join(MINI_DATASET["mosfet"]["mosfet_0001"]),
+    }]
+    rows = list(run_task3(examples, tokenizer=tok, ngram=ng, threshold=-100.0, strategy="hybrid"))
+    assert rows[0].example_id == "z1"
+    assert rows[0].is_valid in (0, 1)
+    assert 0.0 <= rows[0].score <= 1.0
+    assert isinstance(rows[0].predicted_rule, str)

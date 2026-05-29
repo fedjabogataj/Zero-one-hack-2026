@@ -91,3 +91,37 @@ def run_task2(
             example_id=ex["EXAMPLE_ID"],
             predicted_sequence="|".join(tokenizer.decode(out_ids)),
         )
+
+
+@dataclass
+class Task3Row:
+    example_id: str
+    is_valid: int
+    score: float
+    predicted_rule: str
+
+
+def run_task3(
+    examples: Iterable[dict],
+    tokenizer: Tokenizer,
+    ngram: NGram,
+    threshold: float,
+    strategy: str = "hybrid",   # "oracle" | "perplexity" | "hybrid"
+) -> Iterator[Task3Row]:
+    for ex in examples:
+        family = ex["FAMILY"]
+        steps = ex["SEQUENCE"].split("|")
+        if strategy == "oracle":
+            res = detect_oracle(steps)
+        elif strategy == "perplexity":
+            res = detect_perplexity(steps, family, tokenizer, ngram, threshold)
+        elif strategy == "hybrid":
+            res = detect_hybrid(steps, family, tokenizer, ngram, threshold)
+        else:
+            raise ValueError(f"unknown strategy {strategy!r}")
+        yield Task3Row(
+            example_id=ex["EXAMPLE_ID"],
+            is_valid=res.is_valid,
+            score=res.score,
+            predicted_rule=res.predicted_rule,
+        )
