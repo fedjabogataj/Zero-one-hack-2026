@@ -72,3 +72,29 @@ class NGram:
                     return count / denom
         # Final fallback: unigram with floor.
         return self.unigram[family].get(next_id, 0) / family_total if family_total else 0.0
+
+    def save(self, path) -> None:
+        import pickle
+        from pathlib import Path
+        # Convert defaultdicts to plain dicts so pickling is portable.
+        data = {
+            "order": self.order,
+            "counts": {fam: {pre: dict(ctr) for pre, ctr in fam_counts.items()}
+                       for fam, fam_counts in self.counts.items()},
+            "unigram": {fam: dict(ctr) for fam, ctr in self.unigram.items()},
+        }
+        Path(path).write_bytes(pickle.dumps(data))
+
+    @classmethod
+    def load(cls, path) -> "NGram":
+        import pickle
+        from collections import Counter, defaultdict
+        from pathlib import Path
+        data = pickle.loads(Path(path).read_bytes())
+        model = cls(order=data["order"])
+        for fam, fam_counts in data["counts"].items():
+            for pre, ctr in fam_counts.items():
+                model.counts[fam][pre] = Counter(ctr)
+        for fam, ctr in data["unigram"].items():
+            model.unigram[fam] = Counter(ctr)
+        return model
