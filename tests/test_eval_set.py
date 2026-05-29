@@ -48,3 +48,45 @@ def test_truncate_rejects_invalid_fraction():
     for bad in (0.0, 1.0, -0.1, 1.1):
         with pytest.raises(ValueError, match="fraction must be in"):
             truncate([1, 2, 3], fraction=bad)
+
+
+import pytest
+from random import Random
+
+from infineon_baseline import validate_sequence
+from infineon_baseline.eval_set import inject_violation, SUPPORTED_RULES
+
+
+# A long, fully-valid MOSFET sequence (from the reference data) used as injection substrate.
+def _load_reference_mosfet() -> list[str]:
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[1]
+    path = repo_root / "training_data" / "synthetic_mosfet.csv"
+    rows = path.read_text().splitlines()[1:]  # skip header
+    return [r.strip().strip('"') for r in rows if r.strip()]
+
+
+@pytest.mark.parametrize("rule_id", SUPPORTED_RULES)
+def test_injector_triggers_target_rule(rule_id):
+    base = _load_reference_mosfet()
+    assert validate_sequence(base) == [], "reference must start valid"
+    rng = Random(42)
+    corrupted, applied = inject_violation(base, rule_id, rng=rng)
+    violations = validate_sequence(corrupted)
+    assert any(v.rule == rule_id for v in violations), (
+        f"expected {rule_id} in violations; got {[v.rule for v in violations]}"
+    )
+    assert applied == rule_id
+
+
+def test_inject_violation_rejects_unknown_rule():
+    with pytest.raises(ValueError, match="unknown rule"):
+        inject_violation(_load_reference_mosfet(), "RULE_DOES_NOT_EXIST", rng=Random(0))
+
+
+def test_inject_violation_returns_modified_copy_not_in_place():
+    base = _load_reference_mosfet()
+    snapshot = list(base)
+    corrupted, _ = inject_violation(base, "RULE_DEP_NO_CLEAN", rng=Random(0))
+    assert base == snapshot, "input must not be mutated"
+    assert corrupted is not base
