@@ -27,3 +27,41 @@ def test_oracle_detects_injected_violation():
     res = detect_oracle(corrupted)
     assert res.is_valid == 0
     assert res.predicted_rule == applied
+
+
+from infineon_baseline.anomaly import calibrate_threshold, detect_perplexity
+from infineon_baseline.ngram import NGram
+from infineon_baseline.tokenizer import Tokenizer
+from tests.fixtures.mini_sequences import MINI_DATASET
+
+
+def _fit_mini_ngram() -> tuple[Tokenizer, NGram]:
+    tok = Tokenizer.fit(MINI_DATASET)
+    train_ids = {
+        family: [tok.encode(family, steps)[1] for steps in seqs.values()]
+        for family, seqs in MINI_DATASET.items()
+    }
+    model = NGram(order=2).fit(train_ids)
+    return tok, model
+
+
+def test_perplexity_score_is_lower_for_shuffled_sequence():
+    tok, ng = _fit_mini_ngram()
+    valid = MINI_DATASET["mosfet"]["mosfet_0001"]
+    shuffled = list(reversed(valid))   # reversal preserves first/last but scrambles transitions
+    res_v = detect_perplexity(valid, "mosfet", tok, ng, threshold=-50.0)
+    res_s = detect_perplexity(shuffled, "mosfet", tok, ng, threshold=-50.0)
+    # Score is the log-prob mapped to [0, 1]; valid should be higher.
+    assert res_v.score > res_s.score
+
+
+def test_calibrate_threshold_returns_finite_float():
+    tok, ng = _fit_mini_ngram()
+    pos = [MINI_DATASET["mosfet"][f"mosfet_{i:04d}"] for i in range(1, 6)]
+    neg = [list(reversed(s)) for s in pos]
+    families = ["mosfet"] * len(pos)
+    th = calibrate_threshold(positives=pos, negatives=neg,
+                             families_pos=families, families_neg=families,
+                             tokenizer=tok, ngram=ng)
+    import math
+    assert math.isfinite(th)
