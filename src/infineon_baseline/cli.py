@@ -529,6 +529,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--d-model", type=int, default=None, dest="d_model")
     p.add_argument("--n-heads", type=int, default=None, dest="n_heads")
     p.add_argument("--n-layers", type=int, default=None, dest="n_layers")
+    # Checkpointing — saves a self-contained resumable checkpoint every N epochs
+    # plus a final one at training end. Auto-resume kicks in if --out already
+    # has a valid in-progress checkpoint.
+    p.add_argument("--checkpoint-every", type=int, default=1,
+                   help="save a resumable checkpoint every N epochs (default: every epoch)")
+    p.add_argument("--no-resume", action="store_true",
+                   help="ignore any existing checkpoint at --out and train from scratch")
     # Weights & Biases experiment tracking (opt-in — only activates if --wandb-project
     # is passed or WANDB_PROJECT env var is set; falls back to no-op if wandb is
     # missing or login fails so it never blocks training).

@@ -133,15 +133,23 @@ def _init_wandb(
         or os.environ.get("WANDB_ENTITY")
         or "fedja-bogataj-org"   # default account for this repo
     )
+    init_kwargs = dict(
+        project=project,
+        entity=entity,
+        mode=mode,
+        config=config,
+        settings=wandb.Settings(start_method="thread"),
+    )
+    # If we're resuming a previous run, hook back into it; otherwise use the
+    # auto-generated descriptive name (or the user's WANDB_RUN_NAME override).
+    resume_run_id = getattr(args, "_resume_wandb_run_id", None)
+    if resume_run_id:
+        init_kwargs["id"] = resume_run_id
+        init_kwargs["resume"] = "allow"   # resume if found, fresh if not
+    else:
+        init_kwargs["name"] = getattr(args, "wandb_run_name", None)
     try:
-        run = wandb.init(
-            project=project,
-            entity=entity,
-            name=getattr(args, "wandb_run_name", None),
-            mode=mode,
-            config=config,
-            settings=wandb.Settings(start_method="thread"),
-        )
+        run = wandb.init(**init_kwargs)
         url = run.url or "(offline)"
         print(f"📊 wandb run: {run.name}  [{mode}]  → {url}")
         return run
@@ -172,6 +180,87 @@ def _wandb_finish(run) -> None:
         wandb.finish()
     except Exception:
         pass
+
+
+# ─── Checkpointing (atomic save + resume) ────────────────────────────────── #
+
+def _save_checkpoint(
+    out_path: Path,
+    *,
+    model,
+    tokenizer,
+    embedder,
+    unigram,
+    arch_kwargs: dict,
+    epoch_completed: int,
+    global_step: int,
+    optimizer,
+    scheduler,
+    best_val_loss: float,
+    wandb_run_id: str | None,
+    training_complete: bool,
+) -> None:
+    """Atomically write a self-contained checkpoint to `out_path`.
+
+    Includes everything `TransformerPredictor.load()` needs (model weights,
+    arch config, tokenizer, embedder, unigram) PLUS the resume state
+    (optimizer + scheduler + epoch + step) so an interrupted run can pick
+    up exactly where it left off.
+
+    Atomic = write to a `.tmp` sibling then rename, so a crash mid-save
+    can't leave a corrupt checkpoint file.
+    """
+    tokenizer_data = {
+        "id_to_step": tokenizer.id_to_step,
+        "family_to_id": tokenizer.family_to_id,
+    }
+    embedder_data = pickle.dumps({
+        "vectors": embedder.vectors,
+        "step_to_idx": embedder.step_to_idx,
+        "idx_to_step": embedder.idx_to_step,
+        "row_norms": embedder._row_norms,
+    })
+    checkpoint = {
+        # Inference state (TransformerPredictor.load reads these)
+        "config": vars(model.config),
+        "state_dict": model.state_dict(),
+        "tokenizer_data": tokenizer_data,
+        "embedder_data": embedder_data,
+        "unigram": {fam: dict(ctr) for fam, ctr in unigram.items()},
+        "arch_kwargs": arch_kwargs,
+        "wandb_run_id": wandb_run_id,
+        # Resume state (only used by train.py)
+        "epoch_completed": epoch_completed,
+        "global_step": global_step,
+        "best_val_loss": best_val_loss,
+        "optimizer_state": optimizer.state_dict(),
+        "scheduler_state": scheduler.state_dict(),
+        "training_complete": training_complete,
+    }
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_suffix(out_path.suffix + ".tmp")
+    torch.save(checkpoint, tmp)
+    tmp.replace(out_path)
+
+
+def _try_load_resume_state(out_path: Path) -> dict | None:
+    """Return the resume dict from `out_path` if it looks resume-able, else None.
+
+    A checkpoint qualifies for resume only if it contains the resume fields
+    (epoch_completed etc.) — old-style checkpoints written before the
+    checkpointing refactor are treated as non-resumable so train starts fresh.
+    """
+    if not Path(out_path).exists():
+        return None
+    try:
+        ckpt = torch.load(out_path, map_location="cpu", weights_only=False)
+    except Exception as e:
+        print(f"⚠ could not read existing checkpoint at {out_path}: {e}; starting fresh")
+        return None
+    if "epoch_completed" not in ckpt or "optimizer_state" not in ckpt:
+        return None
+    return ckpt
 
 
 # ─── Scheduler ────────────────────────────────────────────────────────────── #
@@ -245,6 +334,24 @@ def train(args: argparse.Namespace) -> int:
     model = model.to(device)
     print(f"Params: {model.param_count():,}")
 
+    # ── Resume detection ────────────────────────────────────────────────── #
+    out_path = Path(args.out)
+    resume_ckpt = None
+    if not getattr(args, "no_resume", False):
+        resume_ckpt = _try_load_resume_state(out_path)
+    if resume_ckpt is not None:
+        ec = resume_ckpt.get("epoch_completed", 0)
+        if resume_ckpt.get("training_complete") and ec >= args.epochs:
+            print(f"✓ Training already complete at {out_path} "
+                  f"(epoch {ec}/{args.epochs}). Pass --no-resume to retrain from scratch.")
+            return 0
+        print(f"🔄 Resuming from {out_path} (epoch {ec}/{args.epochs} done, "
+              f"best_val_loss={resume_ckpt.get('best_val_loss', float('inf')):.4f})")
+        model.load_state_dict(resume_ckpt["state_dict"])
+        # Surface the existing wandb run id so _init_wandb resumes that run
+        # instead of opening a new one.
+        args._resume_wandb_run_id = resume_ckpt.get("wandb_run_id")
+
     # ── Optimizer & scheduler ───────────────────────────────────────────── #
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.lr,
@@ -255,6 +362,14 @@ def train(args: argparse.Namespace) -> int:
     warmup_steps = min(200, total_steps // 10)
     scheduler = _make_scheduler(optimizer, warmup_steps, total_steps)
     criterion = nn.CrossEntropyLoss(ignore_index=-100)
+
+    if resume_ckpt is not None:
+        try:
+            optimizer.load_state_dict(resume_ckpt["optimizer_state"])
+            scheduler.load_state_dict(resume_ckpt["scheduler_state"])
+        except Exception as e:
+            print(f"⚠ Failed to restore optimizer/scheduler state ({e}); "
+                  f"continuing with fresh ones from saved model weights")
 
     # ── Experiment tracking ─────────────────────────────────────────────── #
     wandb_config = {
@@ -277,13 +392,29 @@ def train(args: argparse.Namespace) -> int:
            if not k.startswith("_")},
     }
     wandb_run = _init_wandb(args, wandb_config)
+    # Capture the wandb run id NOW so periodic checkpoints can record it for
+    # future resume cycles (downstream score auto-resume already relied on this).
+    wandb_run_id: str | None = None
+    if wandb_run is not None:
+        try:
+            wandb_run_id = wandb_run.id
+        except Exception:
+            wandb_run_id = None
 
     # ── Training loop ───────────────────────────────────────────────────── #
-    global_step = 0
-    best_val_loss = float("inf")
+    if resume_ckpt is not None:
+        start_epoch = resume_ckpt.get("epoch_completed", 0) + 1
+        global_step = resume_ckpt.get("global_step", 0)
+        best_val_loss = resume_ckpt.get("best_val_loss", float("inf"))
+    else:
+        start_epoch = 1
+        global_step = 0
+        best_val_loss = float("inf")
+
+    checkpoint_every = max(1, getattr(args, "checkpoint_every", 1))
     train_start = time.time()
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, args.epochs + 1):
         model.train()
         epoch_loss = 0.0
         t0 = time.time()
@@ -352,12 +483,31 @@ def train(args: argparse.Namespace) -> int:
             best_val_loss = epoch_val_loss
         _wandb_log(wandb_run, {
             "epoch/train_loss_avg": avg_loss,
-            "epoch/val_loss": epoch_val_loss,       
+            "epoch/val_loss": epoch_val_loss,
             "epoch/val_perplexity": math.exp(min(epoch_val_loss, 50.0)),
             "epoch/tokens_per_sec": tok_per_s,
             "epoch/seconds": elapsed,
             "epoch": epoch,
         }, step=global_step)
+
+        # ── Periodic checkpoint (so a SLURM walltime kill doesn't lose work) ─
+        # `training_complete` is True only on the very last epoch; until then
+        # the checkpoint records "training in progress" so a future
+        # invocation auto-resumes from here.
+        is_last = (epoch == args.epochs)
+        if epoch % checkpoint_every == 0 or is_last:
+            _save_checkpoint(
+                out_path,
+                model=model, tokenizer=tokenizer, embedder=embedder, unigram=unigram,
+                arch_kwargs=arch_kwargs,
+                epoch_completed=epoch, global_step=global_step,
+                optimizer=optimizer, scheduler=scheduler,
+                best_val_loss=best_val_loss,
+                wandb_run_id=wandb_run_id,
+                training_complete=is_last,
+            )
+            tag = "✓ final" if is_last else "💾"
+            print(f"  {tag} checkpoint saved at epoch {epoch} → {out_path}")
 
     # Final val pass.
     val_loss = _eval(model, val_loader, criterion, device)
@@ -370,44 +520,9 @@ def train(args: argparse.Namespace) -> int:
         "final/total_steps": global_step,
     })
 
-    # ── Save checkpoint ─────────────────────────────────────────────────── #
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Serialise tokenizer and embedder inline — checkpoint is fully self-contained.
-    tokenizer_data = {
-        "id_to_step": tokenizer.id_to_step,
-        "family_to_id": tokenizer.family_to_id,
-    }
-    embedder_data = pickle.dumps({
-        "vectors": embedder.vectors,
-        "step_to_idx": embedder.step_to_idx,
-        "idx_to_step": embedder.idx_to_step,
-        "row_norms": embedder._row_norms,
-    })
-
-    # If wandb is active, record its run id so downstream predict/score can
-    # resume the same run for end-to-end metric tracking.
-    wandb_run_id: str | None = None
-    if wandb_run is not None:
-        try:
-            wandb_run_id = wandb_run.id
-        except Exception:
-            wandb_run_id = None
-
-    checkpoint = {
-        "config": vars(model.config),
-        "state_dict": model.state_dict(),
-        "tokenizer_data": tokenizer_data,
-        "embedder_data": embedder_data,
-        "unigram": {fam: dict(ctr) for fam, ctr in unigram.items()},
-        "arch_kwargs": arch_kwargs,
-        "wandb_run_id": wandb_run_id,
-    }
-    torch.save(checkpoint, out_path)
-    print(f"✓ checkpoint saved → {out_path}")
-
-    # Log checkpoint size as the final wandb summary entry, then close the run.
+    # The final checkpoint was already written by the last iteration of the
+    # training loop above (with training_complete=True). Just record its size
+    # for the wandb summary and close out the run.
     try:
         ckpt_mb = out_path.stat().st_size / 1e6
         _wandb_log(wandb_run, {"final/checkpoint_size_mb": ckpt_mb})
