@@ -85,16 +85,29 @@ def _build_samples(
     tokenizer,
     max_seq_len: int,
     pad_id: int,
+    is_subword: bool = False,
 ) -> tuple[list[tuple[int, list[int]]], dict[str, Counter]]:
-    """Tokenise all sequences; also compute unigram counts (for TransformerPredictor)."""
+    """Tokenise all sequences; also compute unigram counts (for TransformerPredictor).
+
+    For flat tokenizers: one integer per step string.
+    For subword tokenizers: encode_sequence returns (family_id, [<bos>, subwords, <sep>, ...]).
+    Unigram counts are over step-level ids for flat, and over subword ids for subword
+    (used by TransformerPredictor for vocabulary masking).
+    """
     samples: list[tuple[int, list[int]]] = []
     unigram: dict[str, Counter] = {}
     for family, seqs in corpus.items():
-        family_id = tokenizer.family_to_id[family]
         uc: Counter = Counter()
         for steps in seqs.values():
-            # Skip steps not in vocabulary (shouldn't happen for train data).
-            ids = [tokenizer.step_to_id[s] for s in steps if s in tokenizer.step_to_id]
+            if is_subword:
+                try:
+                    family_id, ids = tokenizer.encode_sequence(family, steps)
+                except (KeyError, Exception):
+                    continue
+            else:
+                family_id = tokenizer.family_to_id[family]
+                # Skip steps not in vocabulary (shouldn't happen for train data).
+                ids = [tokenizer.step_to_id[s] for s in steps if s in tokenizer.step_to_id]
             if len(ids) < 2:
                 continue
             uc.update(ids)
@@ -199,6 +212,7 @@ def _save_checkpoint(
     best_val_loss: float,
     wandb_run_id: str | None,
     training_complete: bool,
+    tokenizer_kind: str = "flat",
 ) -> None:
     """Atomically write a self-contained checkpoint to `out_path`.
 
@@ -209,11 +223,22 @@ def _save_checkpoint(
 
     Atomic = write to a `.tmp` sibling then rename, so a crash mid-save
     can't leave a corrupt checkpoint file.
+
+    `tokenizer_kind` is either "flat" (default, backward compat) or "subword".
+    For subword tokenizers, tokenizer_data stores id_to_token + family_to_id
+    instead of id_to_step + family_to_id.
     """
-    tokenizer_data = {
-        "id_to_step": tokenizer.id_to_step,
-        "family_to_id": tokenizer.family_to_id,
-    }
+    is_subword = tokenizer_kind == "subword"
+    if is_subword:
+        tokenizer_data = {
+            "id_to_token": tokenizer.id_to_token,
+            "family_to_id": tokenizer.family_to_id,
+        }
+    else:
+        tokenizer_data = {
+            "id_to_step": tokenizer.id_to_step,
+            "family_to_id": tokenizer.family_to_id,
+        }
     embedder_data = pickle.dumps({
         "vectors": embedder.vectors,
         "step_to_idx": embedder.step_to_idx,
@@ -225,6 +250,7 @@ def _save_checkpoint(
         "config": vars(model.config),
         "state_dict": model.state_dict(),
         "tokenizer_data": tokenizer_data,
+        "tokenizer_kind": tokenizer_kind,
         "embedder_data": embedder_data,
         "unigram": {fam: dict(ctr) for fam, ctr in unigram.items()},
         "arch_kwargs": arch_kwargs,
@@ -293,19 +319,34 @@ def train(args: argparse.Namespace) -> int:
 
     # ── Load data ───────────────────────────────────────────────────────── #
     from infineon_baseline.tokenizer import Tokenizer
+    from infineon_baseline.subword_tokenizer import SubwordTokenizer
     from infineon_baseline.embeddings_st import STStepEmbedder
     from infineon_baseline.transformer_model import TransformerLM
 
     corpus = _load_train_split(Path(args.train))
+
+    tokenizer_kind = getattr(args, "tokenizer", "flat")
+    is_subword = (tokenizer_kind == "subword")
+
     # Build tokenizer from the corpus so it covers exactly the training vocabulary.
-    tokenizer = Tokenizer.fit(corpus)
+    if is_subword:
+        tokenizer = SubwordTokenizer.fit(corpus)
+        # Subword sequences are ~3x longer: bump max_seq_len to 512
+        max_seq_len = getattr(args, "max_seq_len", 512)
+        pad_id = tokenizer.pad_id  # PAD is inside the subword vocab at id 0
+        print(f"Subword tokenizer: vocab_size={tokenizer.vocab_size}, "
+              f"families={sorted(tokenizer.family_to_id)}")
+    else:
+        tokenizer = Tokenizer.fit(corpus)
+        max_seq_len = getattr(args, "max_seq_len", 256)
+        vocab_size_flat = len(tokenizer.id_to_step)
+        pad_id = vocab_size_flat  # one slot beyond the actual vocab
+
     embedder = STStepEmbedder.load(Path(args.embeddings))
 
-    max_seq_len = getattr(args, "max_seq_len", 256)
-    vocab_size = len(tokenizer.id_to_step)
-    pad_id = vocab_size  # one slot beyond the actual vocab
-
-    all_samples, unigram = _build_samples(corpus, tokenizer, max_seq_len, pad_id)
+    all_samples, unigram = _build_samples(
+        corpus, tokenizer, max_seq_len, pad_id, is_subword=is_subword,
+    )
 
     # Val split: last 10% of samples (deterministic, no shuffle needed).
     n_val = max(1, len(all_samples) // 10)
@@ -382,7 +423,8 @@ def train(args: argparse.Namespace) -> int:
         "warmup_steps": warmup_steps,
         "n_train_sequences": len(train_samples),
         "n_val_sequences": len(val_samples),
-        "vocab_size": vocab_size,
+        "vocab_size": model.config.vocab_size,
+        "tokenizer_kind": tokenizer_kind,
         "n_families": len(tokenizer.family_to_id),
         "param_count": model.param_count(),
         "embeddings_path": str(args.embeddings),
@@ -505,6 +547,7 @@ def train(args: argparse.Namespace) -> int:
                 best_val_loss=best_val_loss,
                 wandb_run_id=wandb_run_id,
                 training_complete=is_last,
+                tokenizer_kind=tokenizer_kind,
             )
             tag = "✓ final" if is_last else "💾"
             print(f"  {tag} checkpoint saved at epoch {epoch} → {out_path}")

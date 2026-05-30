@@ -84,12 +84,27 @@ class TransformerLM(nn.Module):
         embedder,
         **arch_kwargs,
     ) -> "TransformerLM":
-        """Construct from a fitted Tokenizer and STStepEmbedder.
+        """Construct from a fitted Tokenizer (flat or subword) and STStepEmbedder.
 
-        The token embedding table is initialised from embedder.vectors.
+        For flat tokenizers: init the embedding table from the per-step ST vectors.
+        For subword tokenizers (detected by presence of sep_id attribute):
+          init the embedding table randomly (no per-subword ST embedding available).
+
+        The V+1 embedding-table layout is kept for both modes for consistency:
+          - Flat:    indices 0..V-1 = step tokens, index V = PAD slot (pad_id=V)
+          - Subword: indices 0..V-1 = all tokens (PAD is token 0 inside the vocab),
+                     index V = unused extra slot (pad_id stays at 0 inside vocab).
         arch_kwargs override TransformerConfig defaults (d_model, n_heads, etc.).
         """
-        vocab_size = len(tokenizer.id_to_step)
+        is_subword = hasattr(tokenizer, "sep_id")  # SubwordTokenizer duck-type check
+
+        if is_subword:
+            vocab_size = tokenizer.vocab_size
+            pad_id = tokenizer.pad_id   # PAD is inside the vocab at id 0
+        else:
+            vocab_size = len(tokenizer.id_to_step)
+            pad_id = vocab_size         # PAD uses the extra slot beyond the vocab
+
         n_families = len(tokenizer.family_to_id)
         d_model = arch_kwargs.pop("d_model", 384)
 
@@ -97,27 +112,31 @@ class TransformerLM(nn.Module):
             vocab_size=vocab_size,
             n_families=n_families,
             d_model=d_model,
-            pad_id=vocab_size,   # PAD uses the extra slot beyond the vocab
+            pad_id=pad_id,
             **arch_kwargs,
         )
         model = cls(config)
 
-        # Initialise token embeddings from the ST embedder, aligned to the tokenizer
-        # vocabulary.  The embedder may cover fewer steps than the tokenizer (e.g. some
-        # steps appear in variants but not in description CSVs).  We call embedder.encode()
-        # for every tokenizer step so unknown steps are encoded from their name string.
-        step_vecs = np.stack(
-            [embedder.encode(step) for step in tokenizer.id_to_step],
-            axis=0,
-        ).astype(np.float32)   # (vocab_size, D_emb)
-        vecs = torch.from_numpy(step_vecs)
-        if vecs.shape[1] != d_model:
-            # Project if embedding dim differs from d_model (e.g. when d_model overridden).
-            proj = nn.Linear(vecs.shape[1], d_model, bias=False)
+        if not is_subword:
+            # Flat tokenizer path: initialise token embeddings from the ST embedder,
+            # aligned to the tokenizer vocabulary.  The embedder may cover fewer steps
+            # than the tokenizer (e.g. some steps appear in variants but not in
+            # description CSVs).  We call embedder.encode() for every tokenizer step
+            # so unknown steps are encoded from their name string.
+            step_vecs = np.stack(
+                [embedder.encode(step) for step in tokenizer.id_to_step],
+                axis=0,
+            ).astype(np.float32)   # (vocab_size, D_emb)
+            vecs = torch.from_numpy(step_vecs)
+            if vecs.shape[1] != d_model:
+                # Project if embedding dim differs from d_model.
+                proj = nn.Linear(vecs.shape[1], d_model, bias=False)
+                with torch.no_grad():
+                    vecs = proj(vecs)
             with torch.no_grad():
-                vecs = proj(vecs)
-        with torch.no_grad():
-            model.token_emb.weight[:vocab_size] = vecs
+                model.token_emb.weight[:vocab_size] = vecs
+        # Else (subword): leave the embedding table as random init — subword tokens
+        # don't have meaningful ST vector counterparts.
 
         return model
 
