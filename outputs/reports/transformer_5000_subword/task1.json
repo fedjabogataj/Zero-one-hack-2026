@@ -1,0 +1,11 @@
+{
+  "task": "next-step",
+  "overall": {
+    "top_1_accuracy": 0.586,
+    "top_3_accuracy": 0.8835,
+    "top_5_accuracy": 0.8876666666666667,
+    "mrr": 0.734180555555556,
+    "n": 6000
+  },
+  "per_family": {}
+}

@@ -1,0 +1,11 @@
+{
+  "task": "complete",
+  "model": {
+    "type": "transformer",
+    "path": "outputs/models/transformer_5000_subword.pt",
+    "wandb_run_id": "v90tle75"
+  },
+  "seed": 42,
+  "eval_split_hash": "(set externally)",
+  "timestamp_utc": "2026-05-30T15:42:01.820872+00:00"
+}

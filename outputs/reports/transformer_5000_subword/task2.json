@@ -1,0 +1,11 @@
+{
+  "task": "complete",
+  "overall": {
+    "exact_match_rate": 0.0035,
+    "normalized_edit_distance": 0.2277092311922032,
+    "token_accuracy": 0.38704260170918314,
+    "block_accuracy": 0.6387443258103702,
+    "n": 6000
+  },
+  "per_family": {}
+}
