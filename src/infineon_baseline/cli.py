@@ -137,19 +137,34 @@ def _read_eval_input(path: Path) -> list[dict]:
 
 
 def cmd_predict(args: argparse.Namespace) -> int:
-    base_ngram = NGram.load(args.model)
-    tokenizer = Tokenizer.load(Path(args.model).with_suffix(".tokenizer.json"))
+    # Validate mutual exclusivity of --model and --transformer.
+    has_model = bool(getattr(args, "model", None))
+    has_transformer = bool(getattr(args, "transformer", None))
+    if has_model and has_transformer:
+        print("ERROR: --model and --transformer are mutually exclusive", file=sys.stderr)
+        return 2
+    if not has_model and not has_transformer:
+        print("ERROR: one of --model or --transformer is required", file=sys.stderr)
+        return 2
 
-    # If embeddings are supplied, wrap the n-gram in a SoftNGram so unknown
-    # step names get aliased to nearest known + unseen prefixes fall back to
-    # embedding-similar prefixes' counters.
-    if args.embeddings:
-        embedder = StepEmbedder.load(args.embeddings)
-        model = SoftNGram(ngram=base_ngram, embedder=embedder, tokenizer=tokenizer)
-        model_kind = "soft-ngram"
+    if has_transformer:
+        from infineon_baseline.transformer_predictor import TransformerPredictor
+        model = TransformerPredictor.load(Path(args.transformer))
+        tokenizer = model._tokenizer
+        model_kind = "transformer"
     else:
-        model = base_ngram
-        model_kind = "ngram"
+        base_ngram = NGram.load(args.model)
+        tokenizer = Tokenizer.load(Path(args.model).with_suffix(".tokenizer.json"))
+        # If embeddings are supplied, wrap the n-gram in a SoftNGram so unknown
+        # step names get aliased to nearest known + unseen prefixes fall back to
+        # embedding-similar prefixes' counters.
+        if args.embeddings:
+            embedder = StepEmbedder.load(args.embeddings)
+            model = SoftNGram(ngram=base_ngram, embedder=embedder, tokenizer=tokenizer)
+            model_kind = "soft-ngram"
+        else:
+            model = base_ngram
+            model_kind = "ngram"
 
     examples = _read_eval_input(args.eval_input)
     out_path = Path(args.out)
@@ -169,11 +184,16 @@ def cmd_predict(args: argparse.Namespace) -> int:
         print(f"unknown task: {args.task}", file=sys.stderr)
         return 2
 
+    model_order = getattr(model, "order", None)
+    if has_transformer:
+        model_info = {"type": "transformer", "path": str(args.transformer)}
+    else:
+        model_info = {"type": model_kind, "order": model_order,
+                      "embeddings": str(args.embeddings) if args.embeddings else None}
     write_meta(
         out_path.with_suffix(".meta.json"),
         task=args.task,
-        model_info={"type": model_kind, "order": base_ngram.order,
-                    "embeddings": str(args.embeddings) if args.embeddings else None},
+        model_info=model_info,
         seed=args.seed,
         eval_split_hash="(set externally)",
     )
@@ -193,6 +213,33 @@ def cmd_build_embeddings(args: argparse.Namespace) -> int:
     print(f"✓ embedded {len(embedder.idx_to_step)} unique steps "
           f"({embedder.vectors.shape[1]} dims) → {out_path}")
     return 0
+
+
+# --------------------------------------------------------------------------- #
+# Subcommand: build-st-embeddings
+# --------------------------------------------------------------------------- #
+def cmd_build_st_embeddings(args: argparse.Namespace) -> int:
+    """Compute sentence-transformer embeddings for every step."""
+    from infineon_baseline.embeddings_st import STStepEmbedder
+    descriptions_dir = Path(args.descriptions_dir)
+    paths = sorted(descriptions_dir.glob("*longdescription_parameters.csv"))
+    if not paths:
+        raise FileNotFoundError(f"no *longdescription_parameters.csv in {descriptions_dir}")
+    embedder = STStepEmbedder.from_description_csvs(paths)
+    out_path = Path(args.out)
+    embedder.save(out_path)
+    print(f"✓ ST-embedded {len(embedder.idx_to_step)} unique steps "
+          f"({embedder.vectors.shape[1]} dims) → {out_path}")
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# Subcommand: train
+# --------------------------------------------------------------------------- #
+def cmd_train(args: argparse.Namespace) -> int:
+    """Train the transformer LM."""
+    from infineon_baseline.train import train as _train
+    return _train(args)
 
 
 # --------------------------------------------------------------------------- #
@@ -248,7 +295,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="zero probabilities for steps unseen in that family")
 
     p = sub.add_parser("predict", help="produce a submission for one task")
-    p.add_argument("--model", required=True)
+    p.add_argument("--model", default=None,
+                   help="path to a fitted NGram/SoftNGram model (.pkl); "
+                        "mutually exclusive with --transformer")
+    p.add_argument("--transformer", default=None,
+                   help="path to a trained TransformerPredictor checkpoint (.pt); "
+                        "mutually exclusive with --model")
     p.add_argument("--eval-input", required=True)
     p.add_argument("--task", required=True, choices=["next-step", "complete", "anomaly"])
     p.add_argument("--out", required=True)
@@ -265,6 +317,26 @@ def main(argv: list[str] | None = None) -> int:
                    help="dir containing *_longdescription_parameters.csv files")
     p.add_argument("--out", required=True, help="output .pkl path")
 
+    p = sub.add_parser("build-st-embeddings",
+                       help="compute sentence-transformer embeddings for every step")
+    p.add_argument("--descriptions-dir", required=True,
+                   help="dir containing *_longdescription_parameters.csv files")
+    p.add_argument("--out", required=True, help="output .pkl path")
+
+    p = sub.add_parser("train", help="train the transformer LM")
+    p.add_argument("--train", required=True, help="path to train_split.csv")
+    p.add_argument("--embeddings", required=True,
+                   help="path to a fitted STStepEmbedder (.pkl)")
+    p.add_argument("--out", required=True, help="output checkpoint path (.pt)")
+    p.add_argument("--epochs", type=int, default=20)
+    p.add_argument("--batch-size", type=int, default=32)
+    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--d-model", type=int, default=None, dest="d_model")
+    p.add_argument("--n-heads", type=int, default=None, dest="n_heads")
+    p.add_argument("--n-layers", type=int, default=None, dest="n_layers")
+
     p = sub.add_parser("score", help="score predictions against ground truth")
     p.add_argument("--predictions", required=True)
     p.add_argument("--ground-truth", required=True)
@@ -278,6 +350,8 @@ def main(argv: list[str] | None = None) -> int:
         "predict": cmd_predict,
         "score": cmd_score,
         "build-embeddings": cmd_build_embeddings,
+        "build-st-embeddings": cmd_build_st_embeddings,
+        "train": cmd_train,
     }
     return dispatch[args.cmd](args)
 
