@@ -26,9 +26,20 @@ ANOMALY_STRATEGY="${ANOMALY_STRATEGY:-hybrid}"
 THRESHOLD="${THRESHOLD:--100.0}"
 OUT_DIR="${OUT_DIR:-outputs}"
 
-# Activate venv if not already active.
-if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+# Activate .venv only if (a) it exists AND (b) we're not already inside any env.
+# Skips silently when invoked via `pixi run`, where pixi has already set up PATH
+# and there's no .venv to activate.
+if [[ -z "${VIRTUAL_ENV:-}" ]] && [[ -d .venv ]]; then
+    # shellcheck disable=SC1091
     source .venv/bin/activate
+fi
+
+# Final guard: whatever path we came through, the CLI must be reachable.
+if ! command -v infineon-baseline >/dev/null 2>&1; then
+    echo "ERROR: infineon-baseline not on PATH. Activate your environment first:" >&2
+    echo "  pip+venv: source .venv/bin/activate" >&2
+    echo "  pixi:     run via 'pixi run ./scripts/run_pipeline.sh' or 'pixi shell' first" >&2
+    exit 1
 fi
 
 EVAL_DIR="$OUT_DIR/eval"

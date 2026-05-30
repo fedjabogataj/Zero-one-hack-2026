@@ -35,26 +35,37 @@ cd "$PROJECT_ROOT"
 mkdir -p outputs/slurm
 
 # ─── Environment setup ───────────────────────────────────────────────────────
-# On Leonardo, prefer a module-loaded Python over system Python. Adjust to whatever
-# module is current on the cluster when you run this.
-#
-# module load python/3.11
-# module load gcc                       # often needed for numpy/scipy wheels
-#
-# Activate the venv (create with `python -m venv .venv && pip install -e .[dev]`):
-if [[ ! -d .venv ]]; then
-    echo "ERROR: .venv/ not found — create it first with:"
-    echo "  python -m venv .venv && source .venv/bin/activate && pip install -e '.[dev]'"
+# Make sure user-installed tools (pixi, etc.) are on PATH on the compute node.
+# Compute nodes don't always read ~/.bashrc, so we add pixi's install dir explicitly.
+export PATH="$HOME/.pixi/bin:$PATH"
+
+# Decide which environment manager to use. Prefer pixi (created with
+# `pixi init --import pyproject.toml && pixi install && pixi run pip install -e .`);
+# fall back to a classic pip+venv setup if no pixi env exists.
+if command -v pixi >/dev/null 2>&1 && [[ -d .pixi || -f pixi.toml ]]; then
+    RUNNER=(pixi run ./scripts/run_pipeline.sh)
+    PY_INFO="$(pixi run python --version 2>&1)"
+    PKG_INFO="$(pixi run pip show infineon-baseline 2>/dev/null | grep -E '^(Name|Version|Location)' | tr '\n' ' ')"
+elif [[ -d .venv ]]; then
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    RUNNER=(./scripts/run_pipeline.sh)
+    PY_INFO="$(python --version 2>&1)"
+    PKG_INFO="$(pip show infineon-baseline 2>/dev/null | grep -E '^(Name|Version|Location)' | tr '\n' ' ')"
+else
+    echo "ERROR: no Python environment found. Set up ONE of:"
+    echo "  pixi:  pixi init --import pyproject.toml && pixi install && pixi run pip install -e ."
+    echo "  venv:  python -m venv .venv && source .venv/bin/activate && pip install -e '.[dev]'"
     exit 1
 fi
-source .venv/bin/activate
 
 echo "JOB:      ${SLURM_JOB_ID:-(no SLURM)}"
 echo "HOST:     $(hostname)"
 echo "CWD:      $(pwd)"
-echo "PYTHON:   $(python --version)"
-echo "PACKAGE:  $(pip show infineon-baseline | grep -E '^(Name|Version|Location)' | tr '\n' ' ')"
+echo "RUNNER:   ${RUNNER[*]}"
+echo "PYTHON:   $PY_INFO"
+echo "PACKAGE:  $PKG_INFO"
 echo
 
 # ─── Run the canonical pipeline ──────────────────────────────────────────────
-exec ./scripts/run_pipeline.sh
+exec "${RUNNER[@]}"
