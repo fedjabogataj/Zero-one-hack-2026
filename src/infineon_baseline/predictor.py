@@ -285,17 +285,22 @@ def run_task3(
             steps_list = [ex["SEQUENCE"].split("|") for ex in batch]
             lps = ngram.log_prob_steps_batch(families, steps_list)
             for ex, lp, steps in zip(batch, lps, steps_list):
-                # Normalise log-prob by token count (matches per-example subword path).
+                # Per-token average log-prob (subword score-space).
                 n_tokens = max(1, sum(
                     len(tokenizer.encode_step(s)) + 1 for s in steps
                 ))
-                score = lp / n_tokens
-                is_valid_flag = int(score >= threshold)
+                per_tok_lp = lp / n_tokens
+                # Decision uses raw per-token lp vs threshold (same units).
+                is_valid_flag = int(per_tok_lp >= threshold)
+                # SCORE column in the submission must be in [0,1] — sigmoid
+                # the gap between observed per-token lp and the threshold.
+                # Higher = more likely valid; ROC-AUC reads this column.
+                score_norm = _sigmoid(per_tok_lp - threshold)
                 yield Task3Row(
                     example_id=ex["EXAMPLE_ID"],
                     is_valid=is_valid_flag,
-                    score=float(score),
-                    predicted_rule="PERPLEXITY" if not is_valid_flag else "NONE",
+                    score=float(score_norm),
+                    predicted_rule="PERPLEXITY" if not is_valid_flag else "",
                 )
         return
 
@@ -339,12 +344,15 @@ def run_task3(
             n_tokens = max(1, sum(
                 len(tokenizer.encode_step(s)) + 1 for s in steps
             ))
-            score = lp / n_tokens
-            is_valid_flag = int(score >= threshold)
+            per_tok_lp = lp / n_tokens
+            is_valid_flag = int(per_tok_lp >= threshold)
+            # Same sigmoid normalisation as the batched subword path so
+            # SCORE lands in [0,1] for the submission writer + ROC-AUC.
+            score_norm = _sigmoid(per_tok_lp - threshold)
             res = AnomalyResult(
                 is_valid=is_valid_flag,
-                score=float(score),
-                predicted_rule="PERPLEXITY" if not is_valid_flag else "NONE",
+                score=float(score_norm),
+                predicted_rule="PERPLEXITY" if not is_valid_flag else "",
             )
         elif strategy == "perplexity":
             res = detect_perplexity(steps, family, tokenizer, ngram, threshold)
