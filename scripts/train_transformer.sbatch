@@ -63,12 +63,18 @@ LR="${LR:-3e-4}"
 GEN_SEED="${GEN_SEED:-1042}"   # MUST differ from the seed that built training_data/
 N_LAYERS="${N_LAYERS:-}"
 D_MODEL="${D_MODEL:-}"
+TOKENIZER="${TOKENIZER:-flat}"   # "flat" = one id per step; "subword" = word-level split + <sep>
 
 CANONICAL_DATA="training_data"                       # the original 1000/family — TEST source
 CANONICAL_TEST="outputs/eval_canonical"              # built once from CANONICAL_DATA
 TRAIN_DATA_DIR="training_data_${DATA_SIZE}"          # synthetic — TRAIN source
 TRAIN_POOL_DIR="outputs/train_pool_${DATA_SIZE}"     # train_split.csv + internal val
-MODEL_OUT="outputs/models/transformer_${DATA_SIZE}.pt"
+# Model output path encodes the tokenizer so flat and subword runs don't overwrite each other.
+if [[ "$TOKENIZER" == "subword" ]]; then
+    MODEL_OUT="outputs/models/transformer_${DATA_SIZE}_subword.pt"
+else
+    MODEL_OUT="outputs/models/transformer_${DATA_SIZE}.pt"
+fi
 ST_EMB="outputs/models/st_step_embeddings.pkl"
 
 # ─── Self-describing wandb run name ────────────────────────────────────────
@@ -92,7 +98,8 @@ else
     SIZE_LABEL="$DATA_SIZE"
 fi
 
-DEFAULT_RUN_NAME="xfmr-train${SIZE_LABEL}-${EPOCHS}ep-bs${BATCH_SIZE}"
+# Tokenizer kind is part of the name so flat vs subword are visually distinct.
+DEFAULT_RUN_NAME="xfmr-${TOKENIZER}-train${SIZE_LABEL}-${EPOCHS}ep-bs${BATCH_SIZE}"
 [[ -n "$N_LAYERS" ]]              && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-L${N_LAYERS}"
 [[ -n "$D_MODEL"  ]]              && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-d${D_MODEL}"
 [[ "$LR"       != "3e-4" ]]       && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-lr${LR}"
@@ -174,6 +181,7 @@ pixi run infineon-baseline --seed 42 train \
     --embeddings "$ST_EMB" \
     --out "$MODEL_OUT" \
     --epochs "$EPOCHS" --batch-size "$BATCH_SIZE" --lr "$LR" --device cuda \
+    --tokenizer "$TOKENIZER" \
     --wandb-run-name "$RUN_NAME" \
     "${ARCH_FLAGS[@]}"
 
