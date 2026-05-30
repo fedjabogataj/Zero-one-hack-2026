@@ -71,9 +71,41 @@ TRAIN_POOL_DIR="outputs/train_pool_${DATA_SIZE}"     # train_split.csv + interna
 MODEL_OUT="outputs/models/transformer_${DATA_SIZE}.pt"
 ST_EMB="outputs/models/st_step_embeddings.pkl"
 
-DEFAULT_RUN_NAME="xfmr-${DATA_SIZE}seqs-${EPOCHS}ep-b${BATCH_SIZE}"
-[[ -n "$N_LAYERS" ]] && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-L${N_LAYERS}"
-[[ -n "$D_MODEL"  ]] && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-d${D_MODEL}"
+# ─── Self-describing wandb run name ────────────────────────────────────────
+# Encodes everything that distinguishes this run from another so the wandb
+# Compare view can be scanned at a glance. Format:
+#   xfmr-train<SIZE>-<EPOCHS>ep-bs<BATCH_SIZE>[-L<N_LAYERS>][-d<D_MODEL>][-lr<LR>][-genseed<G>]-job<SLURM_ID>
+#
+# Defaults are omitted, so a vanilla run reads:
+#   xfmr-train5k-30ep-bs64-job43099000
+#
+# Ablations make themselves visible:
+#   xfmr-train25k-50ep-bs128-L6-d768-job43099001
+#   xfmr-train5k-30ep-bs64-lr1e-3-job43099002
+#
+# Override entirely with WANDB_RUN_NAME=<whatever> in --export.
+
+# Pretty size label: 5000 → "5k", 25000 → "25k", non-multiples stay as digits.
+if (( DATA_SIZE >= 1000 && DATA_SIZE % 1000 == 0 )); then
+    SIZE_LABEL="$((DATA_SIZE / 1000))k"
+else
+    SIZE_LABEL="$DATA_SIZE"
+fi
+
+DEFAULT_RUN_NAME="xfmr-train${SIZE_LABEL}-${EPOCHS}ep-bs${BATCH_SIZE}"
+[[ -n "$N_LAYERS" ]]              && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-L${N_LAYERS}"
+[[ -n "$D_MODEL"  ]]              && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-d${D_MODEL}"
+[[ "$LR"       != "3e-4" ]]       && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-lr${LR}"
+[[ "$GEN_SEED" != "1042" ]]       && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-genseed${GEN_SEED}"
+
+# Unique suffix so identical-config resubmissions don't fight over a name.
+# SLURM_JOB_ID is set when run under sbatch; otherwise fall back to timestamp.
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-job${SLURM_JOB_ID}"
+else
+    DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-$(date +%Y%m%d-%H%M%S)"
+fi
+
 RUN_NAME="${WANDB_RUN_NAME:-$DEFAULT_RUN_NAME}"
 
 echo "[$(date '+%H:%M:%S')] job ${SLURM_JOB_ID:-?} on $(hostname)"

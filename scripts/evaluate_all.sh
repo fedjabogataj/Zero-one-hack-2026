@@ -113,18 +113,27 @@ for MODEL in "${MODELS[@]}"; do
         --eval-input "$EVAL_ANOMALY" --task anomaly \
         --out "$SUB_DIR/task3.csv" --threshold -100.0
 
+    # Score: descriptive wandb run name so n-gram-style models (no training
+    # run to auto-resume) still get readable labels on the wandb dashboard.
+    # When the predict step found a wandb_run_id in the checkpoint, score
+    # auto-resumes that run instead and ignores --wandb-run-name.
+    SCORE_NAME_BASE="eval-${TAG}"
+
     echo "[$(date '+%H:%M:%S')] score: next-step"
     "${INFINEON[@]}" score \
         --predictions "$SUB_DIR/task1.csv" --ground-truth "$GT_VALID" \
-        --task next-step --report-json "$REP_DIR/task1.json"
+        --task next-step --report-json "$REP_DIR/task1.json" \
+        --wandb-run-name "${SCORE_NAME_BASE}-next-step"
     echo "[$(date '+%H:%M:%S')] score: complete"
     "${INFINEON[@]}" score \
         --predictions "$SUB_DIR/task2.csv" --ground-truth "$GT_VALID" \
-        --task complete --report-json "$REP_DIR/task2.json"
+        --task complete --report-json "$REP_DIR/task2.json" \
+        --wandb-run-name "${SCORE_NAME_BASE}-complete"
     echo "[$(date '+%H:%M:%S')] score: anomaly"
     "${INFINEON[@]}" score \
         --predictions "$SUB_DIR/task3.csv" --ground-truth "$GT_ANOMALY" \
-        --task anomaly --report-json "$REP_DIR/task3.json"
+        --task anomaly --report-json "$REP_DIR/task3.json" \
+        --wandb-run-name "${SCORE_NAME_BASE}-anomaly"
     echo
 done
 
