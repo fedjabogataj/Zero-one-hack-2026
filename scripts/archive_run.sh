@@ -108,8 +108,36 @@ for MODEL in "${MODELS[@]}"; do
 
     if $INCLUDE_MODEL; then
         MODEL_EXT="${MODEL##*.}"
-        cp "$MODEL" "$DEST/model.$MODEL_EXT"
-        ls -lh "$DEST/model.$MODEL_EXT" | awk '{print "    model copied:", $9, "("$5")"}'
+        if [[ "$MODEL_EXT" == "pt" ]]; then
+            # Strip optimizer/scheduler/resume state — the archived file is the
+            # final inference artifact, not a mid-training resume point. Roughly
+            # halves the file size (drops the ~50 MB of Adam moments).
+            "${PYTHON[@]}" - "$MODEL" "$DEST/model.pt" <<'PY'
+import sys
+from pathlib import Path
+import torch
+
+src, dst = Path(sys.argv[1]), Path(sys.argv[2])
+ckpt = torch.load(src, map_location="cpu", weights_only=False)
+
+# Keep only what TransformerPredictor.load() reads (inference + identification).
+keep = {"config", "state_dict", "tokenizer_data", "embedder_data",
+        "unigram", "arch_kwargs", "wandb_run_id"}
+slim = {k: v for k, v in ckpt.items() if k in keep}
+slim["training_complete"] = True   # mark as finished, no resume state
+
+torch.save(slim, dst)
+src_mb = src.stat().st_size / 1e6
+dst_mb = dst.stat().st_size / 1e6
+saved = src_mb - dst_mb
+pct = (saved / src_mb * 100) if src_mb > 0 else 0
+print(f"    model stripped: {src_mb:.1f} MB → {dst_mb:.1f} MB  (saved {saved:.1f} MB / {pct:.0f}%)")
+PY
+        else
+            # .pkl files (n-gram) — no optimizer state to strip, copy as-is.
+            cp "$MODEL" "$DEST/model.$MODEL_EXT"
+            ls -lh "$DEST/model.$MODEL_EXT" | awk '{print "    model copied:", $9, "("$5")"}'
+        fi
     fi
 
     # ─── Generate README.md with metrics table + config ───────────────────
