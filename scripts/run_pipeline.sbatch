@@ -1,17 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=infineon-baseline
-#SBATCH --output=outputs/slurm/%x-%j.out
-#SBATCH --error=outputs/slurm/%x-%j.err
-#SBATCH --time=00:15:00              # 15 min walltime — pipeline runs in ~10s; padding for setup
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=8G
-# ─── Leonardo-specific (customize for your account) ──────────────────────────
-# Uncomment + fill in once you have your CINECA Leonardo allocation details:
-##SBATCH --account=<YOUR_ACCOUNT>     # e.g. cin_train_2026
-##SBATCH --partition=dcgp_usr_prod    # CPU-only partition; use boost_usr_prod for GPU
-##SBATCH --qos=normal
+#SBATCH --partition=boost_usr_prod
+#SBATCH --reservation=s_tra_ncc # Reservation for the hackathon
+#SBATCH --nodes=1 # Number of nodes
+#SBATCH --ntasks-per-node=1 # Number of `srun` tasks executed per node
+#SBATCH --gpus-per-task=1 # Number of GPUs (up to 4 on Leonardo)
+#SBATCH --mem=120GB # Fair share on Leonardo: 120GB * gpus-per-task
+#SBATCH --cpus-per-task=8 # Fair share on Leonardo: 8 * gpus-per-task
+#SBATCH --time=0:30:00 # Time limit in HH:MM:SS, up to 24:00:00
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # Submit with:
