@@ -40,7 +40,15 @@ else
 fi
 
 # ─── Eval set ──────────────────────────────────────────────────────────────
-EVAL_DIR="${EVAL_DIR:-outputs/eval}"
+# Default: prefer the canonical (original 1000/family) test set if it exists,
+# else fall back to outputs/eval/ for backward compatibility with the older flow.
+if [[ -z "${EVAL_DIR:-}" ]]; then
+    if [[ -f "outputs/eval_canonical/eval_input_valid.csv" ]]; then
+        EVAL_DIR="outputs/eval_canonical"
+    else
+        EVAL_DIR="outputs/eval"
+    fi
+fi
 EVAL_VALID="$EVAL_DIR/eval_input_valid.csv"
 EVAL_ANOMALY="$EVAL_DIR/eval_input_anomaly.csv"
 GT_VALID="$EVAL_DIR/ground_truth_valid.csv"

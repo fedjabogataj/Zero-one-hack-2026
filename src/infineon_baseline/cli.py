@@ -105,6 +105,72 @@ def cmd_build_eval(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# Subcommand: build-test-only
+# --------------------------------------------------------------------------- #
+def cmd_build_test_only(args: argparse.Namespace) -> int:
+    """Build a CANONICAL test set from ALL sequences in a variants dir.
+
+    Unlike `build-eval`, this does no train/test split — every sequence in the
+    source pool goes into the test set. Intended for use with the original
+    `training_data/` (the canonical 1000 sequences per family) to create a
+    fixed test set that's never touched by training.
+
+    Pair with synthetic training data generated separately:
+      ./scripts/generate_data.sh 5000 1042 training_data_5000/
+      infineon-baseline build-eval --variants-dir training_data_5000/ \\
+          --out outputs/train_pool_5000/      # train_split + INTERNAL val only
+      infineon-baseline build-test-only --variants-dir training_data/ \\
+          --out outputs/eval_canonical/       # the 1000-per-family test set
+      infineon-baseline train --train outputs/train_pool_5000/train_split.csv ...
+      EVAL_DIR=outputs/eval_canonical ./scripts/evaluate_all.sh
+    """
+    corpus = _load_corpus(Path(args.variants_dir))
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use ALL sequences from each family as the test pool.
+    seqs_per_family = min(len(seqs) for seqs in corpus.values())
+
+    # Tasks 1 & 2: every sequence truncated at 60% and 80%.
+    valid_rows = build_valid_eval_inputs(
+        corpus, seqs_per_family=seqs_per_family, fractions=(0.6, 0.8),
+    )
+    write_eval_inputs_valid(valid_rows, out_dir / "eval_input_valid.csv")
+    write_ground_truth_valid(valid_rows, out_dir / "ground_truth_valid.csv")
+
+    # Task 3: every sequence; `invalid_ratio` of them get a rule violation injected.
+    anom_rows = build_anomaly_eval_inputs(
+        corpus,
+        seqs_per_family=seqs_per_family,
+        invalid_ratio=args.anomaly_invalid_ratio,
+        seed=args.seed,
+    )
+    write_eval_inputs_anomaly(anom_rows, out_dir / "eval_input_anomaly.csv")
+    write_ground_truth_anomaly(anom_rows, out_dir / "ground_truth_anomaly.csv")
+
+    n_invalid = sum(1 for r in anom_rows if r.get("_is_invalid"))
+    meta = {
+        "test_only": True,
+        "source": str(args.variants_dir),
+        "seqs_per_family": seqs_per_family,
+        "n_families": len(corpus),
+        "n_valid_rows": len(valid_rows),
+        "n_anomaly_rows": len(anom_rows),
+        "n_anomaly_invalid": n_invalid,
+        "anomaly_invalid_ratio": args.anomaly_invalid_ratio,
+        "seed": args.seed,
+    }
+    (out_dir / "test_meta.json").write_text(json.dumps(meta, indent=2))
+    print(
+        f"✓ wrote canonical test set to {out_dir}/  "
+        f"({seqs_per_family} seqs/family × {len(corpus)} families = "
+        f"{len(valid_rows)} valid rows + {len(anom_rows)} anomaly rows, "
+        f"{n_invalid} corrupted)"
+    )
+    return 0
+
+
+# --------------------------------------------------------------------------- #
 # Subcommand: fit
 # --------------------------------------------------------------------------- #
 def cmd_fit(args: argparse.Namespace) -> int:
@@ -404,6 +470,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--holdout-per-family", type=int, default=200)
     p.add_argument("--anomaly-invalid-ratio", type=float, default=0.39)
 
+    p = sub.add_parser("build-test-only",
+                       help="build a CANONICAL test set from ALL sequences in variants-dir "
+                            "(no train split; intended for the original 1000/family reference data)")
+    p.add_argument("--variants-dir", required=True,
+                   help="usually training_data/ (the original 1000/family reference)")
+    p.add_argument("--out", required=True,
+                   help="canonical eval dir, e.g. outputs/eval_canonical/")
+    p.add_argument("--anomaly-invalid-ratio", type=float, default=0.39,
+                   help="fraction of anomaly inputs that get a rule violation injected")
+
     p = sub.add_parser("fit", help="fit the n-gram on a train split")
     p.add_argument("--train", required=True)
     p.add_argument("--out", required=True)
@@ -489,6 +565,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     dispatch = {
         "build-eval": cmd_build_eval,
+        "build-test-only": cmd_build_test_only,
         "fit": cmd_fit,
         "predict": cmd_predict,
         "score": cmd_score,
