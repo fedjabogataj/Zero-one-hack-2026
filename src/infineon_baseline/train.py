@@ -128,10 +128,15 @@ def _init_wandb(
         or os.environ.get("WANDB_MODE")
         or "online"
     )
+    entity = (
+        getattr(args, "wandb_entity", None)
+        or os.environ.get("WANDB_ENTITY")
+        or "fedja-bogataj-org"   # default account for this repo
+    )
     try:
         run = wandb.init(
             project=project,
-            entity=getattr(args, "wandb_entity", None) or os.environ.get("WANDB_ENTITY"),
+            entity=entity,
             name=getattr(args, "wandb_run_name", None),
             mode=mode,
             config=config,
@@ -347,7 +352,7 @@ def train(args: argparse.Namespace) -> int:
             best_val_loss = epoch_val_loss
         _wandb_log(wandb_run, {
             "epoch/train_loss_avg": avg_loss,
-            "epoch/val_loss": epoch_val_loss,
+            "epoch/val_loss": epoch_val_loss,       
             "epoch/val_perplexity": math.exp(min(epoch_val_loss, 50.0)),
             "epoch/tokens_per_sec": tok_per_s,
             "epoch/seconds": elapsed,
@@ -381,6 +386,15 @@ def train(args: argparse.Namespace) -> int:
         "row_norms": embedder._row_norms,
     })
 
+    # If wandb is active, record its run id so downstream predict/score can
+    # resume the same run for end-to-end metric tracking.
+    wandb_run_id: str | None = None
+    if wandb_run is not None:
+        try:
+            wandb_run_id = wandb_run.id
+        except Exception:
+            wandb_run_id = None
+
     checkpoint = {
         "config": vars(model.config),
         "state_dict": model.state_dict(),
@@ -388,6 +402,7 @@ def train(args: argparse.Namespace) -> int:
         "embedder_data": embedder_data,
         "unigram": {fam: dict(ctr) for fam, ctr in unigram.items()},
         "arch_kwargs": arch_kwargs,
+        "wandb_run_id": wandb_run_id,
     }
     torch.save(checkpoint, out_path)
     print(f"✓ checkpoint saved → {out_path}")

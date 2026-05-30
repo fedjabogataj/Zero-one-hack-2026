@@ -26,6 +26,15 @@ export HTTPS_PROXY="$HTTP_PROXY"
 export http_proxy="$HTTP_PROXY"
 export https_proxy="$HTTP_PROXY"
 
+# ─── Weights & Biases experiment tracking ───────────────────────────────────
+# Set WANDB_API_KEY once via `wandb login` on the login node (writes ~/.netrc,
+# which compute nodes can read). If the proxy is flaky, override to offline:
+#   export WANDB_MODE="offline"
+# then sync from the login node after the job with `wandb sync .wandb/...`.
+export WANDB_ENTITY="fedja-bogataj-org"
+export WANDB_PROJECT="infineon-track1"
+export WANDB_MODE="${WANDB_MODE:-online}"
+
 echo "[$(date '+%H:%M:%S')] job ${SLURM_JOB_ID:-?} on $(hostname)"
 echo "[$(date '+%H:%M:%S')] cwd: $(pwd)"
 

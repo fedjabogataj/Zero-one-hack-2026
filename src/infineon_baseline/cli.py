@@ -147,11 +147,20 @@ def cmd_predict(args: argparse.Namespace) -> int:
         print("ERROR: one of --model or --transformer is required", file=sys.stderr)
         return 2
 
+    wandb_run_id: str | None = None
     if has_transformer:
         from infineon_baseline.transformer_predictor import TransformerPredictor
         model = TransformerPredictor.load(Path(args.transformer))
         tokenizer = model._tokenizer
         model_kind = "transformer"
+        # Recover the training run id (saved by train.py into the checkpoint) so
+        # the downstream `score` step can resume the same wandb run.
+        try:
+            import torch
+            ckpt = torch.load(Path(args.transformer), map_location="cpu", weights_only=False)
+            wandb_run_id = ckpt.get("wandb_run_id")
+        except Exception:
+            pass
     else:
         base_ngram = NGram.load(args.model)
         tokenizer = Tokenizer.load(Path(args.model).with_suffix(".tokenizer.json"))
@@ -186,10 +195,12 @@ def cmd_predict(args: argparse.Namespace) -> int:
 
     model_order = getattr(model, "order", None)
     if has_transformer:
-        model_info = {"type": "transformer", "path": str(args.transformer)}
+        model_info = {"type": "transformer", "path": str(args.transformer),
+                      "wandb_run_id": wandb_run_id}
     else:
         model_info = {"type": model_kind, "order": model_order,
-                      "embeddings": str(args.embeddings) if args.embeddings else None}
+                      "embeddings": str(args.embeddings) if args.embeddings else None,
+                      "wandb_run_id": None}
     write_meta(
         out_path.with_suffix(".meta.json"),
         task=args.task,
@@ -270,7 +281,113 @@ def cmd_score(args: argparse.Namespace) -> int:
         Path(args.report_json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.report_json).write_text(json.dumps(rep, indent=2, default=str))
         print(f"✓ wrote report → {args.report_json}")
+
+    # ── Optional wandb logging ──────────────────────────────────────────── #
+    _log_score_to_wandb(args, rep)
     return 0
+
+
+def _log_score_to_wandb(args: argparse.Namespace, rep: dict) -> None:
+    """Send the metrics report to wandb, optionally resuming a training run.
+
+    Activates only if --wandb-project (or WANDB_PROJECT env var) is set.
+    If --wandb-run-id is given, resumes that exact run so eval metrics land
+    on the same chart as the training they correspond to. Otherwise creates
+    a fresh "score" run linked to the same project. Silently no-ops if
+    wandb is missing or init fails.
+    """
+    import os
+    project = getattr(args, "wandb_project", None) or os.environ.get("WANDB_PROJECT")
+    if not project:
+        return
+    try:
+        import wandb
+    except ImportError:
+        print("⚠ wandb not installed (pip install 'infineon-baseline[tracking]'); "
+              "skipping eval logging")
+        return
+    entity = (
+        getattr(args, "wandb_entity", None)
+        or os.environ.get("WANDB_ENTITY")
+        or "fedja-bogataj-org"   # default account for this repo
+    )
+    run_id = getattr(args, "wandb_run_id", None)
+    # Auto-detect: if --wandb-run-id wasn't passed, look for a sibling
+    # `<predictions>.meta.json` written by `predict`. If it carries a
+    # wandb_run_id, resume that run so eval metrics land on the same chart
+    # as the training they correspond to.
+    if not run_id:
+        meta_path = Path(args.predictions).with_suffix(".meta.json")
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text())
+                candidate = (meta.get("model") or {}).get("wandb_run_id")
+                if candidate:
+                    run_id = candidate
+                    print(f"📊 wandb: resuming run {run_id} (from {meta_path.name})")
+            except Exception:
+                pass
+    init_kwargs: dict = {
+        "project": project,
+        "entity": entity,
+        "mode": (getattr(args, "wandb_mode", None) or os.environ.get("WANDB_MODE")
+                 or "online"),
+        "settings": wandb.Settings(start_method="thread"),
+    }
+    if run_id:
+        init_kwargs["id"] = run_id
+        init_kwargs["resume"] = "must"
+    else:
+        init_kwargs["name"] = (getattr(args, "wandb_run_name", None)
+                               or f"score-{args.task}")
+        init_kwargs["job_type"] = "score"
+
+    try:
+        run = wandb.init(**init_kwargs)
+    except Exception as e:
+        print(f"⚠ wandb.init failed ({e}); skipping eval logging")
+        return
+
+    # Flatten the report dict into wandb-friendly key paths.
+    payload: dict = {}
+    for k, v in rep.get("overall", {}).items():
+        if isinstance(v, (int, float)):
+            payload[f"eval/{args.task}/overall/{k}"] = v
+        elif isinstance(v, dict):  # e.g. confusion matrix for anomaly
+            for ck, cv in v.items():
+                if isinstance(cv, (int, float)):
+                    payload[f"eval/{args.task}/overall/{k}/{ck}"] = cv
+    for fam, fam_metrics in rep.get("per_family", {}).items():
+        for k, v in fam_metrics.items():
+            if isinstance(v, (int, float)):
+                payload[f"eval/{args.task}/{fam}/{k}"] = v
+            elif isinstance(v, dict):
+                for ck, cv in v.items():
+                    if isinstance(cv, (int, float)):
+                        payload[f"eval/{args.task}/{fam}/{k}/{ck}"] = cv
+    # Headline metrics get a flat alias so wandb's summary panel shows them.
+    headline_keys = {
+        "next-step": ("top_1_accuracy", "top_3_accuracy", "top_5_accuracy", "mrr"),
+        "complete":  ("exact_match_rate", "normalized_edit_distance",
+                      "token_accuracy", "block_accuracy"),
+        "anomaly":   ("binary_accuracy", "precision", "recall", "f1", "roc_auc",
+                      "rule_attribution_accuracy"),
+    }.get(args.task, ())
+    for k in headline_keys:
+        v = rep.get("overall", {}).get(k)
+        if isinstance(v, (int, float)):
+            payload[f"summary/{args.task}/{k}"] = v
+
+    try:
+        wandb.log(payload)
+        print(f"📊 wandb: logged {len(payload)} eval metrics → {run.url or '(offline)'}")
+    except Exception as e:
+        print(f"⚠ wandb.log failed ({e})")
+    finally:
+        try:
+            wandb.finish()
+        except Exception:
+            pass
 
 
 # --------------------------------------------------------------------------- #
@@ -354,6 +471,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ground-truth", required=True)
     p.add_argument("--task", required=True, choices=["next-step", "complete", "anomaly"])
     p.add_argument("--report-json", default=None)
+    # Weights & Biases (opt-in — activate by passing --wandb-project or setting
+    # WANDB_PROJECT in the environment). If --wandb-run-id is given, eval
+    # metrics are appended to that training run; otherwise a fresh "score" run
+    # is created. Default entity is fedja-bogataj-org (this repo's account).
+    p.add_argument("--wandb-project", default=None,
+                   help="W&B project; if set, logs eval metrics to wandb")
+    p.add_argument("--wandb-entity", default=None,
+                   help="W&B entity (default: fedja-bogataj-org)")
+    p.add_argument("--wandb-run-id", default=None,
+                   help="W&B run id to RESUME — eval metrics land on the same run as training")
+    p.add_argument("--wandb-run-name", default=None,
+                   help="W&B run name (only used if --wandb-run-id is not given)")
+    p.add_argument("--wandb-mode", default=None, choices=[None, "online", "offline", "disabled"],
+                   help="W&B mode override (default: WANDB_MODE env var or 'online')")
 
     args = parser.parse_args(argv)
     dispatch = {
