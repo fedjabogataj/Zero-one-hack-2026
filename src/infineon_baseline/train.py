@@ -265,7 +265,7 @@ def train(args: argparse.Namespace) -> int:
         "arch_kwargs": arch_kwargs,
     }
     torch.save(checkpoint, out_path)
-    print(f"checkpointsaved -> {out_path}")
+    print(f"✓ checkpoint saved → {out_path}")
     return 0
 
 
