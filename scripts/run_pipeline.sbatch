@@ -22,9 +22,14 @@
 
 set -euo pipefail
 
-# Resolve project root: this script lives in <project>/scripts/.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve project root.
+# When SLURM runs the job, it executes a COPY of this script from a temp dir
+# (typically /var/spool/slurm/job.<id>/slurm_script), so BASH_SOURCE points
+# there instead of the real script location — making a $SCRIPT_DIR/.. lookup
+# resolve to /var/spool/slurm and fail with "Permission denied" on mkdir.
+# Use SLURM_SUBMIT_DIR (the directory `sbatch` was run from) when present,
+# otherwise fall back to the BASH_SOURCE-based resolution for direct execution.
+PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$PROJECT_ROOT"
 
 mkdir -p outputs/slurm
