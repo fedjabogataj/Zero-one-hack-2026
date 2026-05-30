@@ -102,8 +102,15 @@ class TransformerLM(nn.Module):
         )
         model = cls(config)
 
-        # Initialise token embeddings from the ST embedder vectors.
-        vecs = torch.from_numpy(embedder.vectors.astype(np.float32))  # (vocab_size, D_emb)
+        # Initialise token embeddings from the ST embedder, aligned to the tokenizer
+        # vocabulary.  The embedder may cover fewer steps than the tokenizer (e.g. some
+        # steps appear in variants but not in description CSVs).  We call embedder.encode()
+        # for every tokenizer step so unknown steps are encoded from their name string.
+        step_vecs = np.stack(
+            [embedder.encode(step) for step in tokenizer.id_to_step],
+            axis=0,
+        ).astype(np.float32)   # (vocab_size, D_emb)
+        vecs = torch.from_numpy(step_vecs)
         if vecs.shape[1] != d_model:
             # Project if embedding dim differs from d_model (e.g. when d_model overridden).
             proj = nn.Linear(vecs.shape[1], d_model, bias=False)
