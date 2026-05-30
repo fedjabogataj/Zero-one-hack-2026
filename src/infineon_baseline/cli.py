@@ -19,6 +19,7 @@ from pathlib import Path
 import pandas as pd
 
 from infineon_baseline.anomaly import calibrate_threshold
+from infineon_baseline.embeddings import StepEmbedder
 from infineon_baseline.eval_set import (
     build_anomaly_eval_inputs, build_valid_eval_inputs,
     split, write_eval_inputs_anomaly, write_eval_inputs_valid,
@@ -28,6 +29,7 @@ from infineon_baseline.loaders import load_variants
 from infineon_baseline.metrics import report
 from infineon_baseline.ngram import NGram
 from infineon_baseline.predictor import run_task1, run_task2, run_task3
+from infineon_baseline.soft_ngram import SoftNGram, build_step_embedder_from_training_data
 from infineon_baseline.submission import (
     write_meta, write_task1_csv, write_task2_csv, write_task3_csv,
 )
@@ -135,8 +137,20 @@ def _read_eval_input(path: Path) -> list[dict]:
 
 
 def cmd_predict(args: argparse.Namespace) -> int:
-    model = NGram.load(args.model)
+    base_ngram = NGram.load(args.model)
     tokenizer = Tokenizer.load(Path(args.model).with_suffix(".tokenizer.json"))
+
+    # If embeddings are supplied, wrap the n-gram in a SoftNGram so unknown
+    # step names get aliased to nearest known + unseen prefixes fall back to
+    # embedding-similar prefixes' counters.
+    if args.embeddings:
+        embedder = StepEmbedder.load(args.embeddings)
+        model = SoftNGram(ngram=base_ngram, embedder=embedder, tokenizer=tokenizer)
+        model_kind = "soft-ngram"
+    else:
+        model = base_ngram
+        model_kind = "ngram"
+
     examples = _read_eval_input(args.eval_input)
     out_path = Path(args.out)
 
@@ -158,11 +172,26 @@ def cmd_predict(args: argparse.Namespace) -> int:
     write_meta(
         out_path.with_suffix(".meta.json"),
         task=args.task,
-        model_info={"type": "ngram", "order": model.order},
+        model_info={"type": model_kind, "order": base_ngram.order,
+                    "embeddings": str(args.embeddings) if args.embeddings else None},
         seed=args.seed,
         eval_split_hash="(set externally)",
     )
-    print(f"✓ wrote {len(rows)} predictions → {out_path}")
+    print(f"✓ wrote {len(rows)} predictions ({model_kind}) → {out_path}")
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# Subcommand: build-embeddings
+# --------------------------------------------------------------------------- #
+def cmd_build_embeddings(args: argparse.Namespace) -> int:
+    """Compute TF-IDF embeddings for every step from the description CSVs."""
+    descriptions_dir = Path(args.descriptions_dir)
+    embedder = build_step_embedder_from_training_data(descriptions_dir)
+    out_path = Path(args.out)
+    embedder.save(out_path)
+    print(f"✓ embedded {len(embedder.idx_to_step)} unique steps "
+          f"({embedder.vectors.shape[1]} dims) → {out_path}")
     return 0
 
 
@@ -226,6 +255,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--constrain", action="store_true", help="rule-aware decoder for complete")
     p.add_argument("--anomaly-strategy", choices=["oracle", "perplexity", "hybrid"], default="hybrid")
     p.add_argument("--threshold", type=float, default=None)
+    p.add_argument("--embeddings", default=None,
+                   help="path to a StepEmbedder pickle; if set, wraps the n-gram in a SoftNGram "
+                        "(OOD-friendly: unknown step names alias to nearest known, unseen prefixes "
+                        "fall back to embedding-similar prefixes)")
+
+    p = sub.add_parser("build-embeddings", help="compute TF-IDF embeddings for every step")
+    p.add_argument("--descriptions-dir", required=True,
+                   help="dir containing *_longdescription_parameters.csv files")
+    p.add_argument("--out", required=True, help="output .pkl path")
 
     p = sub.add_parser("score", help="score predictions against ground truth")
     p.add_argument("--predictions", required=True)
@@ -239,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
         "fit": cmd_fit,
         "predict": cmd_predict,
         "score": cmd_score,
+        "build-embeddings": cmd_build_embeddings,
     }
     return dispatch[args.cmd](args)
 
