@@ -216,10 +216,17 @@ __marimo__/
 # Project-specific additions (industrial-infineon track)
 # ─────────────────────────────────────────────────────────────────────
 
-# Project outputs (per design spec; never commit eval/model/submission artifacts)
-# The directory itself is tracked (via .gitkeep); only the contents are ignored.
+# Project outputs (working dir for each run — regenerable, gitignored).
+# Move things you want to commit into results/ via scripts/archive_run.sh.
 outputs/*
 !outputs/.gitkeep
+
+# results/ holds archived experiments — metrics, submissions, summaries (all tracked).
+# Model checkpoints (.pt, .pkl) are NOT tracked by default because they're huge
+# (~80 MB each); use scripts/archive_run.sh --include-model to opt in, and consider
+# git-lfs (`git lfs track "results/**/*.pt"`) if you commit several.
+results/**/*.pt
+results/**/*.tmp
 
 # Claude Code local settings (per-user permissions; not for sharing)
 .claude/
