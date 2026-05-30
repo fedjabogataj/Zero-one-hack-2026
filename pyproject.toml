@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+tracking = ["wandb>=0.16"]
 
 [project.scripts]
 infineon-baseline = "infineon_baseline.cli:main"

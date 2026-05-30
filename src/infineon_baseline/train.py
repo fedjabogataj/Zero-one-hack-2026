@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import os
 import pickle
 import time
 from collections import Counter
@@ -102,6 +103,72 @@ def _build_samples(
     return samples, unigram
 
 
+# ─── Experiment tracking (wandb) ──────────────────────────────────────────── #
+
+def _init_wandb(
+    args: argparse.Namespace,
+    config: dict,
+):
+    """Initialise wandb if configured. Returns the run or None.
+
+    Activates only if `--wandb-project` is passed or `WANDB_PROJECT` env var is set.
+    Silently degrades to no-op if wandb is missing or fails to init — training
+    continues either way.
+    """
+    project = getattr(args, "wandb_project", None) or os.environ.get("WANDB_PROJECT")
+    if not project:
+        return None
+    try:
+        import wandb
+    except ImportError:
+        print("⚠ wandb not installed (pip install wandb); continuing without tracking")
+        return None
+    mode = (
+        getattr(args, "wandb_mode", None)
+        or os.environ.get("WANDB_MODE")
+        or "online"
+    )
+    try:
+        run = wandb.init(
+            project=project,
+            entity=getattr(args, "wandb_entity", None) or os.environ.get("WANDB_ENTITY"),
+            name=getattr(args, "wandb_run_name", None),
+            mode=mode,
+            config=config,
+            settings=wandb.Settings(start_method="thread"),
+        )
+        url = run.url or "(offline)"
+        print(f"📊 wandb run: {run.name}  [{mode}]  → {url}")
+        return run
+    except Exception as e:
+        print(f"⚠ wandb.init failed ({e}); continuing without tracking")
+        return None
+
+
+def _wandb_log(run, payload: dict, step: int | None = None) -> None:
+    """Forward to wandb.log() if a run exists, no-op otherwise."""
+    if run is None:
+        return
+    try:
+        import wandb
+        if step is not None:
+            wandb.log(payload, step=step)
+        else:
+            wandb.log(payload)
+    except Exception:
+        pass
+
+
+def _wandb_finish(run) -> None:
+    if run is None:
+        return
+    try:
+        import wandb
+        wandb.finish()
+    except Exception:
+        pass
+
+
 # ─── Scheduler ────────────────────────────────────────────────────────────── #
 
 def _make_scheduler(optimizer, warmup_steps: int, total_steps: int):
@@ -184,9 +251,32 @@ def train(args: argparse.Namespace) -> int:
     scheduler = _make_scheduler(optimizer, warmup_steps, total_steps)
     criterion = nn.CrossEntropyLoss(ignore_index=-100)
 
+    # ── Experiment tracking ─────────────────────────────────────────────── #
+    wandb_config = {
+        "seed": args.seed,
+        "lr": args.lr,
+        "batch_size": args.batch_size,
+        "epochs": args.epochs,
+        "device": str(device),
+        "total_steps": total_steps,
+        "warmup_steps": warmup_steps,
+        "n_train_sequences": len(train_samples),
+        "n_val_sequences": len(val_samples),
+        "vocab_size": vocab_size,
+        "n_families": len(tokenizer.family_to_id),
+        "param_count": model.param_count(),
+        "embeddings_path": str(args.embeddings),
+        "train_csv": str(args.train),
+        "out_path": str(args.out),
+        **{f"arch.{k}": v for k, v in vars(model.config).items()
+           if not k.startswith("_")},
+    }
+    wandb_run = _init_wandb(args, wandb_config)
+
     # ── Training loop ───────────────────────────────────────────────────── #
     global_step = 0
     best_val_loss = float("inf")
+    train_start = time.time()
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -222,23 +312,58 @@ def train(args: argparse.Namespace) -> int:
                       f"tokens/s approx {batch_tokens / max(elapsed, 1e-6):.0f}")
 
             if global_step % 50 == 0:
+                lr_now = scheduler.get_last_lr()[0]
                 print(f"  step {global_step:5d} | loss {loss.item():.4f} "
-                      f"| lr {scheduler.get_last_lr()[0]:.2e}")
+                      f"| lr {lr_now:.2e}")
+                _wandb_log(wandb_run, {
+                    "train/loss": loss.item(),
+                    "train/lr": lr_now,
+                    "train/grad_norm": float(
+                        nn.utils.clip_grad_norm_(model.parameters(), float("inf"))
+                    ),
+                    "epoch": epoch,
+                }, step=global_step)
 
             if global_step % 500 == 0:
                 val_loss = _eval(model, val_loader, criterion, device)
+                val_ppl = math.exp(min(val_loss, 50.0))
                 print(f"  [val step {global_step}] loss {val_loss:.4f}")
+                _wandb_log(wandb_run, {
+                    "val/loss": val_loss,
+                    "val/perplexity": val_ppl,
+                }, step=global_step)
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
 
         elapsed = time.time() - t0
         avg_loss = epoch_loss / max(len(train_loader), 1)
+        tok_per_s = n_tokens / max(elapsed, 1e-6)
         print(f"Epoch {epoch}/{args.epochs} | avg_loss {avg_loss:.4f} "
-              f"| {n_tokens / max(elapsed, 1e-6):.0f} tok/s | {elapsed:.1f}s")
+              f"| {tok_per_s:.0f} tok/s | {elapsed:.1f}s")
+
+        # End-of-epoch val pass + log.
+        epoch_val_loss = _eval(model, val_loader, criterion, device)
+        if epoch_val_loss < best_val_loss:
+            best_val_loss = epoch_val_loss
+        _wandb_log(wandb_run, {
+            "epoch/train_loss_avg": avg_loss,
+            "epoch/val_loss": epoch_val_loss,
+            "epoch/val_perplexity": math.exp(min(epoch_val_loss, 50.0)),
+            "epoch/tokens_per_sec": tok_per_s,
+            "epoch/seconds": elapsed,
+            "epoch": epoch,
+        }, step=global_step)
 
     # Final val pass.
     val_loss = _eval(model, val_loader, criterion, device)
     print(f"Final val loss: {val_loss:.4f}")
+    total_train_time = time.time() - train_start
+    _wandb_log(wandb_run, {
+        "final/val_loss": val_loss,
+        "final/best_val_loss": best_val_loss,
+        "final/total_time_seconds": total_train_time,
+        "final/total_steps": global_step,
+    })
 
     # ── Save checkpoint ─────────────────────────────────────────────────── #
     out_path = Path(args.out)
@@ -266,6 +391,14 @@ def train(args: argparse.Namespace) -> int:
     }
     torch.save(checkpoint, out_path)
     print(f"✓ checkpoint saved → {out_path}")
+
+    # Log checkpoint size as the final wandb summary entry, then close the run.
+    try:
+        ckpt_mb = out_path.stat().st_size / 1e6
+        _wandb_log(wandb_run, {"final/checkpoint_size_mb": ckpt_mb})
+    except Exception:
+        pass
+    _wandb_finish(wandb_run)
     return 0
 
 

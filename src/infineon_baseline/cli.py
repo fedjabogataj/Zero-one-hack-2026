@@ -336,6 +336,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--d-model", type=int, default=None, dest="d_model")
     p.add_argument("--n-heads", type=int, default=None, dest="n_heads")
     p.add_argument("--n-layers", type=int, default=None, dest="n_layers")
+    # Weights & Biases experiment tracking (opt-in — only activates if --wandb-project
+    # is passed or WANDB_PROJECT env var is set; falls back to no-op if wandb is
+    # missing or login fails so it never blocks training).
+    p.add_argument("--wandb-project", default=None,
+                   help="W&B project name; if set, enables experiment tracking "
+                        "(falls back to WANDB_PROJECT env var)")
+    p.add_argument("--wandb-entity", default=None,
+                   help="W&B entity / team (falls back to WANDB_ENTITY env var)")
+    p.add_argument("--wandb-run-name", default=None,
+                   help="W&B run name; defaults to auto-generated")
+    p.add_argument("--wandb-mode", default=None, choices=[None, "online", "offline", "disabled"],
+                   help="W&B mode override; defaults to env var WANDB_MODE or 'online'")
 
     p = sub.add_parser("score", help="score predictions against ground truth")
     p.add_argument("--predictions", required=True)
