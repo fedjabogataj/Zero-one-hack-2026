@@ -1,0 +1,11 @@
+{
+  "task": "anomaly",
+  "model": {
+    "type": "transformer",
+    "path": "outputs/models/transformer_10000.pt",
+    "wandb_run_id": "gdp9gomi"
+  },
+  "seed": 42,
+  "eval_split_hash": "(set externally)",
+  "timestamp_utc": "2026-05-30T14:31:51.724504+00:00"
+}

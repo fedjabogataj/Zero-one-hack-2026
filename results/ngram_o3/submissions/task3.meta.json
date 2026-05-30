@@ -1,0 +1,12 @@
+{
+  "task": "anomaly",
+  "model": {
+    "type": "ngram",
+    "order": 3,
+    "embeddings": null,
+    "wandb_run_id": null
+  },
+  "seed": 42,
+  "eval_split_hash": "(set externally)",
+  "timestamp_utc": "2026-05-30T14:34:25.526685+00:00"
+}

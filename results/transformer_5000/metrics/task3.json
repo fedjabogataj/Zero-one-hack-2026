@@ -1,0 +1,19 @@
+{
+  "task": "anomaly",
+  "overall": {
+    "binary_accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "confusion": {
+      "tp": 1170,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1830
+    },
+    "rule_attribution_accuracy": 0.9752136752136752,
+    "n": 3000,
+    "roc_auc": 0.7940170940170941
+  },
+  "per_family": {}
+}
