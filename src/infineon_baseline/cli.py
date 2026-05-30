@@ -548,6 +548,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="W&B run name; defaults to auto-generated")
     p.add_argument("--wandb-mode", default=None, choices=[None, "online", "offline", "disabled"],
                    help="W&B mode override; defaults to env var WANDB_MODE or 'online'")
+    p.add_argument("--tokenizer", choices=["flat", "subword"], default="flat",
+                   help="tokenization strategy: 'flat' = one id per step string (default), "
+                        "'subword' = word-level split + step-boundary <sep> (OOD-friendly)")
 
     p = sub.add_parser("score", help="score predictions against ground truth")
     p.add_argument("--predictions", required=True)
