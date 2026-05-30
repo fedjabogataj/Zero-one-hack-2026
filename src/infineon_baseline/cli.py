@@ -198,8 +198,19 @@ def cmd_fit(args: argparse.Namespace) -> int:
 # Subcommand: predict
 # --------------------------------------------------------------------------- #
 def _read_eval_input(path: Path) -> list[dict]:
+    """Read an eval input CSV and normalise FAMILY values to lowercase.
+
+    The official organizer-distributed files use uppercase family names
+    (MOSFET / IGBT / IC) whereas our internal tokenizers and ngrams use
+    lowercase. Normalising on read lets the same predictor handle both
+    our self-built eval files and theirs without per-call branching.
+    """
     with Path(path).open(newline="") as f:
-        return list(csv.DictReader(f))
+        rows = list(csv.DictReader(f))
+    for r in rows:
+        if "FAMILY" in r and isinstance(r["FAMILY"], str):
+            r["FAMILY"] = r["FAMILY"].strip().lower()
+    return rows
 
 
 def cmd_predict(args: argparse.Namespace) -> int:
