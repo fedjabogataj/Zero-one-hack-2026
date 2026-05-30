@@ -7,6 +7,7 @@
 #SBATCH --mem=120GB # Fair share on Leonardo: 120GB * gpus-per-task
 #SBATCH --cpus-per-task=8 # Fair share on Leonardo: 8 * gpus-per-task
 #SBATCH --time=0:30:00 # Time limit in HH:MM:SS, up to 24:00:00
+#SBATCH --account=EUHPC_D30_031
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # Submit with:
