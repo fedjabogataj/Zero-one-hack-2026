@@ -216,7 +216,10 @@ def cmd_predict(args: argparse.Namespace) -> int:
     wandb_run_id: str | None = None
     if has_transformer:
         from infineon_baseline.transformer_predictor import TransformerPredictor
-        model = TransformerPredictor.load(Path(args.transformer))
+        model = TransformerPredictor.load(
+            Path(args.transformer),
+            precision=getattr(args, "precision", "auto"),
+        )
         tokenizer = model._tokenizer
         model_kind = "transformer"
         # Recover the training run id (saved by train.py into the checkpoint) so
@@ -244,16 +247,20 @@ def cmd_predict(args: argparse.Namespace) -> int:
     examples = _read_eval_input(args.eval_input)
     out_path = Path(args.out)
 
+    batch_size = getattr(args, "batch_size", 128)
     if args.task == "next-step":
-        rows = list(run_task1(examples, tokenizer=tokenizer, ngram=model))
+        rows = list(run_task1(examples, tokenizer=tokenizer, ngram=model,
+                              batch_size=batch_size))
         write_task1_csv(rows, out_path)
     elif args.task == "complete":
-        rows = list(run_task2(examples, tokenizer=tokenizer, ngram=model, constrain=args.constrain))
+        rows = list(run_task2(examples, tokenizer=tokenizer, ngram=model,
+                              constrain=args.constrain, batch_size=batch_size))
         write_task2_csv(rows, out_path)
     elif args.task == "anomaly":
         threshold = args.threshold if args.threshold is not None else 0.0
         rows = list(run_task3(examples, tokenizer=tokenizer, ngram=model,
-                              threshold=threshold, strategy=args.anomaly_strategy))
+                              threshold=threshold, strategy=args.anomaly_strategy,
+                              batch_size=batch_size))
         write_task3_csv(rows, out_path)
     else:
         print(f"unknown task: {args.task}", file=sys.stderr)
@@ -504,6 +511,13 @@ def main(argv: list[str] | None = None) -> int:
                    help="path to a StepEmbedder pickle; if set, wraps the n-gram in a SoftNGram "
                         "(OOD-friendly: unknown step names alias to nearest known, unseen prefixes "
                         "fall back to embedding-similar prefixes)")
+    # Transformer-only knobs. Ignored when --model (n-gram) is used.
+    p.add_argument("--batch-size", type=int, default=128, dest="batch_size",
+                   help="batch size for transformer inference (default 128); "
+                        "ignored for n-gram models")
+    p.add_argument("--precision", choices=["auto", "fp32", "bf16", "fp16"], default="auto",
+                   help="inference dtype for transformer; "
+                        "auto = bf16 on CUDA, fp32 elsewhere")
 
     p = sub.add_parser("build-embeddings", help="compute TF-IDF embeddings for every step")
     p.add_argument("--descriptions-dir", required=True,
