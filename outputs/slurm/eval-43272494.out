@@ -1,0 +1,983 @@
+[08:02:53] job 43272494 on lrdn0058.leonardo.local
+[08:02:53] cwd:  /leonardo/home/usertrain/a08trc0r/Zero-one-hack-2026
+[08:02:53] eval: outputs/eval_canonical (override with --export=ALL,EVAL_DIR=...)
+[08:02:53] evaluating 18 model(s) against outputs/eval_canonical/
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r0.best  (outputs/models/transformer_5000_bge-r0.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:02:53] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r0.best/task1.csv
+[08:03:04] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r0.best/task2.csv
+[08:03:41] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r0.best/task3.csv
+[08:03:47] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.708
+top_3_accuracy                       0.998
+top_5_accuracy                       1.000
+mrr                                  0.852
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r0.best/task1.json
+📊 wandb: resuming run wt3jljqz (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/wt3jljqz
+[08:03:54] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.007
+normalized_edit_distance             0.213
+token_accuracy                       0.404
+block_accuracy                       0.648
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r0.best/task2.json
+📊 wandb: resuming run wt3jljqz (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/wt3jljqz
+[08:04:04] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.766
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r0.best/task3.json
+📊 wandb: resuming run wt3jljqz (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/wt3jljqz
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r0  (outputs/models/transformer_5000_bge-r0.pt)
+──────────────────────────────────────────────────────────────────
+[08:04:10] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r0.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r0/task1.csv
+[08:04:15] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r0.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r0/task2.csv
+[08:04:52] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r0.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r0/task3.csv
+[08:04:58] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.708
+top_3_accuracy                       0.998
+top_5_accuracy                       1.000
+mrr                                  0.852
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r0/task1.json
+📊 wandb: resuming run wt3jljqz (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/wt3jljqz
+[08:05:05] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.007
+normalized_edit_distance             0.213
+token_accuracy                       0.404
+block_accuracy                       0.648
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r0/task2.json
+📊 wandb: resuming run wt3jljqz (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/wt3jljqz
+[08:05:15] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.766
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r0/task3.json
+📊 wandb: resuming run wt3jljqz (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/wt3jljqz
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r1.best  (outputs/models/transformer_5000_bge-r1.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:05:20] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r1.best/task1.csv
+[08:05:26] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r1.best/task2.csv
+[08:06:11] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r1.best/task3.csv
+[08:06:17] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.697
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.846
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r1.best/task1.json
+📊 wandb: resuming run rkxcqtht (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/rkxcqtht
+[08:06:24] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.004
+normalized_edit_distance             0.219
+token_accuracy                       0.392
+block_accuracy                       0.641
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r1.best/task2.json
+📊 wandb: resuming run rkxcqtht (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/rkxcqtht
+[08:06:34] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.830
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r1.best/task3.json
+📊 wandb: resuming run rkxcqtht (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/rkxcqtht
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r1  (outputs/models/transformer_5000_bge-r1.pt)
+──────────────────────────────────────────────────────────────────
+[08:06:39] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r1.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r1/task1.csv
+[08:06:45] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r1.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r1/task2.csv
+[08:07:31] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r1.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r1/task3.csv
+[08:07:37] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.697
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.846
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r1/task1.json
+📊 wandb: resuming run rkxcqtht (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/rkxcqtht
+[08:07:43] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.004
+normalized_edit_distance             0.219
+token_accuracy                       0.392
+block_accuracy                       0.641
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r1/task2.json
+📊 wandb: resuming run rkxcqtht (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/rkxcqtht
+[08:07:54] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.830
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r1/task3.json
+📊 wandb: resuming run rkxcqtht (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/rkxcqtht
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r2.best  (outputs/models/transformer_5000_bge-r2.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:08:00] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2.best/task1.csv
+[08:08:06] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2.best/task2.csv
+[08:08:59] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2.best/task3.csv
+[08:09:05] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.713
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.854
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r2.best/task1.json
+📊 wandb: resuming run c8kv2aqp (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/c8kv2aqp
+[08:09:11] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.006
+normalized_edit_distance             0.213
+token_accuracy                       0.400
+block_accuracy                       0.643
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r2.best/task2.json
+📊 wandb: resuming run c8kv2aqp (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/c8kv2aqp
+[08:09:21] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.877
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r2.best/task3.json
+📊 wandb: resuming run c8kv2aqp (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/c8kv2aqp
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r2  (outputs/models/transformer_5000_bge-r2.pt)
+──────────────────────────────────────────────────────────────────
+[08:09:27] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r2.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2/task1.csv
+[08:09:33] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r2.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2/task2.csv
+[08:10:27] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r2.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2/task3.csv
+[08:10:33] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.713
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.854
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r2/task1.json
+📊 wandb: resuming run c8kv2aqp (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/c8kv2aqp
+[08:10:40] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.006
+normalized_edit_distance             0.213
+token_accuracy                       0.400
+block_accuracy                       0.643
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r2/task2.json
+📊 wandb: resuming run c8kv2aqp (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/c8kv2aqp
+[08:10:49] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.877
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r2/task3.json
+📊 wandb: resuming run c8kv2aqp (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/c8kv2aqp
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r3.best  (outputs/models/transformer_5000_bge-r3.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:10:55] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r3.best/task1.csv
+[08:11:01] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r3.best/task2.csv
+[08:11:38] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r3.best/task3.csv
+[08:11:43] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.703
+top_3_accuracy                       0.998
+top_5_accuracy                       1.000
+mrr                                  0.849
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r3.best/task1.json
+📊 wandb: resuming run i9xixxnr (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i9xixxnr
+[08:11:50] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.004
+normalized_edit_distance             0.220
+token_accuracy                       0.401
+block_accuracy                       0.651
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r3.best/task2.json
+📊 wandb: resuming run i9xixxnr (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i9xixxnr
+[08:12:00] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.980
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r3.best/task3.json
+📊 wandb: resuming run i9xixxnr (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i9xixxnr
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r3  (outputs/models/transformer_5000_bge-r3.pt)
+──────────────────────────────────────────────────────────────────
+[08:12:06] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r3.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r3/task1.csv
+[08:12:11] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r3.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r3/task2.csv
+[08:12:48] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r3.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r3/task3.csv
+[08:12:54] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.703
+top_3_accuracy                       0.998
+top_5_accuracy                       1.000
+mrr                                  0.849
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r3/task1.json
+📊 wandb: resuming run i9xixxnr (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i9xixxnr
+[08:13:01] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.004
+normalized_edit_distance             0.220
+token_accuracy                       0.401
+block_accuracy                       0.651
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r3/task2.json
+📊 wandb: resuming run i9xixxnr (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i9xixxnr
+[08:13:11] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.980
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r3/task3.json
+📊 wandb: resuming run i9xixxnr (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i9xixxnr
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r4.best  (outputs/models/transformer_5000_bge-r4.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:13:17] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r4.best/task1.csv
+[08:13:23] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r4.best/task2.csv
+[08:14:08] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r4.best/task3.csv
+[08:14:13] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.699
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.847
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r4.best/task1.json
+📊 wandb: resuming run h4r1ghtd (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/h4r1ghtd
+[08:14:20] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.006
+normalized_edit_distance             0.220
+token_accuracy                       0.404
+block_accuracy                       0.651
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r4.best/task2.json
+📊 wandb: resuming run h4r1ghtd (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/h4r1ghtd
+[08:14:30] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.500
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r4.best/task3.json
+📊 wandb: resuming run h4r1ghtd (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/h4r1ghtd
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r4  (outputs/models/transformer_5000_bge-r4.pt)
+──────────────────────────────────────────────────────────────────
+[08:14:35] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r4.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r4/task1.csv
+[08:14:41] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r4.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r4/task2.csv
+[08:15:27] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r4.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r4/task3.csv
+[08:15:32] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.699
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.847
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r4/task1.json
+📊 wandb: resuming run h4r1ghtd (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/h4r1ghtd
+[08:15:39] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.006
+normalized_edit_distance             0.220
+token_accuracy                       0.404
+block_accuracy                       0.651
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r4/task2.json
+📊 wandb: resuming run h4r1ghtd (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/h4r1ghtd
+[08:15:49] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.500
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r4/task3.json
+📊 wandb: resuming run h4r1ghtd (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/h4r1ghtd
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r5.best  (outputs/models/transformer_5000_bge-r5.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:15:55] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r5.best/task1.csv
+[08:16:01] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r5.best/task2.csv
+[08:16:55] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r5.best/task3.csv
+[08:17:01] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.714
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.855
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r5.best/task1.json
+📊 wandb: resuming run 5mzsl6di (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/5mzsl6di
+[08:17:07] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.005
+normalized_edit_distance             0.215
+token_accuracy                       0.401
+block_accuracy                       0.648
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r5.best/task2.json
+📊 wandb: resuming run 5mzsl6di (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/5mzsl6di
+[08:17:18] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.500
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r5.best/task3.json
+📊 wandb: resuming run 5mzsl6di (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/5mzsl6di
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r5  (outputs/models/transformer_5000_bge-r5.pt)
+──────────────────────────────────────────────────────────────────
+[08:17:23] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r5.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r5/task1.csv
+[08:17:29] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r5.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r5/task2.csv
+[08:18:23] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r5.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r5/task3.csv
+[08:18:29] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.714
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.855
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r5/task1.json
+📊 wandb: resuming run 5mzsl6di (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/5mzsl6di
+[08:18:36] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.005
+normalized_edit_distance             0.215
+token_accuracy                       0.401
+block_accuracy                       0.648
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r5/task2.json
+📊 wandb: resuming run 5mzsl6di (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/5mzsl6di
+[08:18:46] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.500
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r5/task3.json
+📊 wandb: resuming run 5mzsl6di (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/5mzsl6di
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r6.best  (outputs/models/transformer_5000_bge-r6.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:18:52] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r6.best/task1.csv
+[08:18:57] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r6.best/task2.csv
+[08:19:34] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r6.best/task3.csv
+[08:19:40] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.693
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.844
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r6.best/task1.json
+📊 wandb: resuming run o1vo4wjd (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/o1vo4wjd
+[08:19:47] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.005
+normalized_edit_distance             0.219
+token_accuracy                       0.396
+block_accuracy                       0.645
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r6.best/task2.json
+📊 wandb: resuming run o1vo4wjd (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/o1vo4wjd
+[08:19:56] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.984
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r6.best/task3.json
+📊 wandb: resuming run o1vo4wjd (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/o1vo4wjd
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r6  (outputs/models/transformer_5000_bge-r6.pt)
+──────────────────────────────────────────────────────────────────
+[08:20:02] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r6.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r6/task1.csv
+[08:20:08] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r6.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r6/task2.csv
+[08:20:45] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r6.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r6/task3.csv
+[08:20:51] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.693
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.844
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r6/task1.json
+📊 wandb: resuming run o1vo4wjd (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/o1vo4wjd
+[08:20:57] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.005
+normalized_edit_distance             0.219
+token_accuracy                       0.396
+block_accuracy                       0.645
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r6/task2.json
+📊 wandb: resuming run o1vo4wjd (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/o1vo4wjd
+[08:21:07] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.984
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r6/task3.json
+📊 wandb: resuming run o1vo4wjd (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/o1vo4wjd
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r7.best  (outputs/models/transformer_5000_bge-r7.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:21:12] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r7.best/task1.csv
+[08:21:18] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r7.best/task2.csv
+[08:22:03] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r7.best/task3.csv
+[08:22:09] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.696
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.846
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r7.best/task1.json
+📊 wandb: resuming run i86um4v6 (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i86um4v6
+[08:22:15] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.004
+normalized_edit_distance             0.220
+token_accuracy                       0.390
+block_accuracy                       0.641
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r7.best/task2.json
+📊 wandb: resuming run i86um4v6 (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i86um4v6
+[08:22:25] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.500
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r7.best/task3.json
+📊 wandb: resuming run i86um4v6 (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i86um4v6
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r7  (outputs/models/transformer_5000_bge-r7.pt)
+──────────────────────────────────────────────────────────────────
+[08:22:31] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r7.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r7/task1.csv
+[08:22:37] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r7.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r7/task2.csv
+[08:23:23] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r7.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r7/task3.csv
+[08:23:29] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.696
+top_3_accuracy                       0.997
+top_5_accuracy                       1.000
+mrr                                  0.846
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r7/task1.json
+📊 wandb: resuming run i86um4v6 (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i86um4v6
+[08:23:36] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.004
+normalized_edit_distance             0.220
+token_accuracy                       0.390
+block_accuracy                       0.641
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r7/task2.json
+📊 wandb: resuming run i86um4v6 (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i86um4v6
+[08:23:45] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.500
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r7/task3.json
+📊 wandb: resuming run i86um4v6 (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/i86um4v6
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r8.best  (outputs/models/transformer_5000_bge-r8.best.pt)
+──────────────────────────────────────────────────────────────────
+[08:23:51] predict: next-step
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r8.best/task1.csv
+[08:23:57] predict: complete
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r8.best/task2.csv
+[08:24:50] predict: anomaly
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r8.best/task3.csv
+[08:24:56] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.706
+top_3_accuracy                       0.998
+top_5_accuracy                       1.000
+mrr                                  0.851
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r8.best/task1.json
+📊 wandb: resuming run ki2kwzv6 (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/ki2kwzv6
+[08:25:03] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.006
+normalized_edit_distance             0.214
+token_accuracy                       0.403
+block_accuracy                       0.648
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r8.best/task2.json
+📊 wandb: resuming run ki2kwzv6 (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/ki2kwzv6
+[08:25:13] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.998
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r8.best/task3.json
+📊 wandb: resuming run ki2kwzv6 (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/ki2kwzv6
+
+──────────────────────────────────────────────────────────────────
+ transformer_5000_bge-r8  (outputs/models/transformer_5000_bge-r8.pt)
+──────────────────────────────────────────────────────────────────
+[08:25:19] predict: next-step
+📈 using best-val-loss checkpoint: transformer_5000_bge-r8.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r8/task1.csv
+[08:25:25] predict: complete
+📈 using best-val-loss checkpoint: transformer_5000_bge-r8.best.pt
+✓ wrote 6000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r8/task2.csv
+[08:26:19] predict: anomaly
+📈 using best-val-loss checkpoint: transformer_5000_bge-r8.best.pt
+✓ wrote 3000 predictions (transformer) → outputs/submissions/transformer_5000_bge-r8/task3.csv
+[08:26:25] score: next-step
+
+TASK: next-step
+------------------------------------------------------------------------------
+metric                                 ALL
+top_1_accuracy                       0.706
+top_3_accuracy                       0.998
+top_5_accuracy                       1.000
+mrr                                  0.851
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r8/task1.json
+📊 wandb: resuming run ki2kwzv6 (from task1.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/ki2kwzv6
+[08:26:32] score: complete
+
+TASK: complete
+------------------------------------------------------------------------------
+metric                                 ALL
+exact_match_rate                     0.006
+normalized_edit_distance             0.214
+token_accuracy                       0.403
+block_accuracy                       0.648
+n: 6000
+✓ wrote report → outputs/reports/transformer_5000_bge-r8/task2.json
+📊 wandb: resuming run ki2kwzv6 (from task2.meta.json)
+📊 wandb: logged 9 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/ki2kwzv6
+[08:26:42] score: anomaly
+
+TASK: anomaly
+------------------------------------------------------------------------------
+metric                                 ALL
+binary_accuracy                      1.000
+precision                            1.000
+recall                               1.000
+f1                                   1.000
+rule_attribution_accuracy            0.975
+roc_auc                              0.998
+n: 3000
+✓ wrote report → outputs/reports/transformer_5000_bge-r8/task3.json
+📊 wandb: resuming run ki2kwzv6 (from task3.meta.json)
+📊 wandb: logged 17 eval metrics → https://wandb.ai/fedja-bogataj-org/infineon-track1/runs/ki2kwzv6
+
+═══════════════════════════════════════════════════════════════════════
+MODEL COMPARISON SUMMARY  (eval set: outputs/eval_canonical/)
+═══════════════════════════════════════════════════════════════════════
+
+Task: next-step
+metric              transformer_5000_bge-r0.best  transformer_5000_bge-r0  transformer_5000_bge-r1.best  transformer_5000_bge-r1  transformer_5000_bge-r2.best  transformer_5000_bge-r2  transformer_5000_bge-r3.best  transformer_5000_bge-r3  transformer_5000_bge-r4.best  transformer_5000_bge-r4  transformer_5000_bge-r5.best  transformer_5000_bge-r5  transformer_5000_bge-r6.best  transformer_5000_bge-r6  transformer_5000_bge-r7.best  transformer_5000_bge-r7  transformer_5000_bge-r8.best  transformer_5000_bge-r8
+------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------
+top_1_accuracy (↑)  0.7078                        0.7078                   0.6965                        0.6965                   0.7125                        0.7125                   0.7032                        0.7032                   0.6988                        0.6988                   *0.7135*                      0.7135                   0.6928                        0.6928                   0.6962                        0.6962                   0.7057                        0.7057                 
+top_3_accuracy (↑)  0.9975                        0.9975                   0.9968                        0.9968                   0.9972                        0.9972                   0.9975                        0.9975                   0.9973                        0.9973                   0.9965                        0.9965                   0.9972                        0.9972                   0.9972                        0.9972                   *0.9978*                      0.9978                 
+top_5_accuracy (↑)  *1.0000*                      1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                 
+mrr (↑)             0.8517                        0.8517                   0.8459                        0.8459                   0.8540                        0.8540                   0.8494                        0.8494                   0.8468                        0.8468                   *0.8547*                      0.8547                   0.8442                        0.8442                   0.8458                        0.8458                   0.8507                        0.8507                 
+
+Task: complete
+metric                        transformer_5000_bge-r0.best  transformer_5000_bge-r0  transformer_5000_bge-r1.best  transformer_5000_bge-r1  transformer_5000_bge-r2.best  transformer_5000_bge-r2  transformer_5000_bge-r3.best  transformer_5000_bge-r3  transformer_5000_bge-r4.best  transformer_5000_bge-r4  transformer_5000_bge-r5.best  transformer_5000_bge-r5  transformer_5000_bge-r6.best  transformer_5000_bge-r6  transformer_5000_bge-r7.best  transformer_5000_bge-r7  transformer_5000_bge-r8.best  transformer_5000_bge-r8
+----------------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------
+exact_match_rate (↑)          *0.0067*                      0.0067                   0.0037                        0.0037                   0.0058                        0.0058                   0.0043                        0.0043                   0.0065                        0.0065                   0.0055                        0.0055                   0.0050                        0.0050                   0.0037                        0.0037                   0.0060                        0.0060                 
+normalized_edit_distance (↓)  0.2132                        0.2132                   0.2192                        0.2192                   *0.2126*                      0.2126                   0.2197                        0.2197                   0.2196                        0.2196                   0.2154                        0.2154                   0.2189                        0.2189                   0.2199                        0.2199                   0.2142                        0.2142                 
+token_accuracy (↑)            *0.4035*                      0.4035                   0.3920                        0.3920                   0.4003                        0.4003                   0.4007                        0.4007                   0.4035                        0.4035                   0.4007                        0.4007                   0.3957                        0.3957                   0.3903                        0.3903                   0.4027                        0.4027                 
+block_accuracy (↑)            0.6480                        0.6480                   0.6405                        0.6405                   0.6428                        0.6428                   *0.6510*                      0.6510                   0.6505                        0.6505                   0.6476                        0.6476                   0.6453                        0.6453                   0.6412                        0.6412                   0.6484                        0.6484                 
+
+Task: anomaly
+metric                         transformer_5000_bge-r0.best  transformer_5000_bge-r0  transformer_5000_bge-r1.best  transformer_5000_bge-r1  transformer_5000_bge-r2.best  transformer_5000_bge-r2  transformer_5000_bge-r3.best  transformer_5000_bge-r3  transformer_5000_bge-r4.best  transformer_5000_bge-r4  transformer_5000_bge-r5.best  transformer_5000_bge-r5  transformer_5000_bge-r6.best  transformer_5000_bge-r6  transformer_5000_bge-r7.best  transformer_5000_bge-r7  transformer_5000_bge-r8.best  transformer_5000_bge-r8
+-----------------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------  ----------------------------  -----------------------
+binary_accuracy (↑)            *1.0000*                      1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                 
+f1 (↑)                         *1.0000*                      1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                   1.0000                        1.0000                 
+roc_auc (↑)                    0.7662                        0.7662                   0.8299                        0.8299                   0.8773                        0.8773                   0.9803                        0.9803                   0.5000                        0.5000                   0.5000                        0.5000                   0.9836                        0.9836                   0.5000                        0.5000                   *0.9977*                      0.9977                 
+rule_attribution_accuracy (↑)  *0.9752*                      0.9752                   0.9752                        0.9752                   0.9752                        0.9752                   0.9752                        0.9752                   0.9752                        0.9752                   0.9752                        0.9752                   0.9752                        0.9752                   0.9752                        0.9752                   0.9752                        0.9752                 
+
+[08:26:47] ✓ done — *value* marks the best model per metric (ties go to first)
+    Submissions: outputs/submissions/<model>/
+    Reports:     outputs/reports/<model>/
+    Wandb:       check the wandb project for live charts + eval metrics
+[08:26:47] ✓ eval complete

@@ -1,0 +1,11 @@
+{
+  "task": "anomaly",
+  "model": {
+    "type": "transformer",
+    "path": "outputs/models/transformer_5000_bge-r2.pt",
+    "wandb_run_id": "c8kv2aqp"
+  },
+  "seed": 42,
+  "eval_split_hash": "(set externally)",
+  "timestamp_utc": "2026-05-31T07:13:26.813333+00:00"
+}

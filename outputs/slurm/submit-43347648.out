@@ -1,0 +1,18 @@
+[09:13:04] producing submissions for 1 model(s)
+[09:13:04]   eval source : official_eval/
+[09:13:04]   expected    : valid=600 rows, anomaly=987 rows
+
+=== transformer_5000_bge-r2  (transformer) ===
+📈 using best-val-loss checkpoint: transformer_5000_bge-r2.best.pt
+✓ wrote 600 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2/official/task1.csv
+📈 using best-val-loss checkpoint: transformer_5000_bge-r2.best.pt
+✓ wrote 600 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2/official/task2.csv
+📈 using best-val-loss checkpoint: transformer_5000_bge-r2.best.pt
+✓ wrote 987 predictions (transformer) → outputs/submissions/transformer_5000_bge-r2/official/task3.csv
+  Validation:
+    ✓ task1  rows=600 cols=EXAMPLE_ID,RANK_1,RANK_2,RANK_3,RANK_4,RANK_5
+    ✓ task2  rows=600 cols=EXAMPLE_ID,PREDICTED_SEQUENCE
+    ✓ task3  rows=987 cols=EXAMPLE_ID,IS_VALID,SCORE,PREDICTED_RULE
+  ✓ ready to upload: outputs/submissions/transformer_5000_bge-r2/official/
+
+[09:13:27] done.  ✓ 1 ok    ✗ 0 invalid
