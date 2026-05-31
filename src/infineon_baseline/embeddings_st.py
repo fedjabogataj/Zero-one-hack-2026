@@ -23,12 +23,16 @@ from typing import Iterable
 import numpy as np
 
 
-_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+_MODEL_NAME = "BAAI/bge-base-en-v1.5"
+# 109M params, 768-dim sentence-embedding model. Meaningfully stronger than
+# the previous all-MiniLM-L6-v2 (22M params, 384-dim) on technical /
+# domain-specific text, while still small enough to encode the 136 step
+# strings in well under a minute on the login node.
 
 
 @dataclass
 class STStepEmbedder:
-    vectors: np.ndarray           # shape (N_steps, 384)
+    vectors: np.ndarray           # shape (N_steps, 768)
     step_to_idx: dict[str, int]
     idx_to_step: list[str]
     _row_norms: np.ndarray        # shape (N_steps,) — precomputed L2 norms

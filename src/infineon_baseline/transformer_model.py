@@ -8,8 +8,12 @@ Architecture:
 - n_layers stacked TransformerEncoderLayer blocks with causal mask.
 - LM head: weight-tied linear projection to vocab_size logits (no softmax).
 
-Default arch matches all-MiniLM-L6-v2 dimension (384):
-  d_model=384, n_heads=6, n_layers=4, ff_dim=1536, dropout=0.1, max_seq_len=256
+Default arch matches BGE-base-en-v1.5 dimension (768):
+  d_model=768, n_heads=12, n_layers=4, ff_dim=3072, dropout=0.1, max_seq_len=256
+
+This is a step up from the earlier MiniLM-L6-v2 defaults (d_model=384).
+Param count goes ~7.3M → ~28M; per-epoch wall time grows ~3-4× on A100 but
+each token gets a much richer semantic vector at init.
 """
 from __future__ import annotations
 
@@ -25,10 +29,12 @@ import torch.nn as nn
 class TransformerConfig:
     vocab_size: int = 0            # set from tokenizer at construction time
     n_families: int = 0            # set from tokenizer at construction time
-    d_model: int = 384
-    n_heads: int = 6
+    # Defaults sized to BGE-base-en-v1.5's output dim (768). 12 heads gives
+    # head_dim=64 which is the conventional choice. FFN is the standard 4× d_model.
+    d_model: int = 768
+    n_heads: int = 12
     n_layers: int = 4
-    ff_dim: int = 1536
+    ff_dim: int = 3072
     dropout: float = 0.1
     max_seq_len: int = 256
     freeze_embeddings: bool = False
@@ -91,7 +97,7 @@ class TransformerLM(nn.Module):
         """
         vocab_size = len(tokenizer.id_to_step)
         n_families = len(tokenizer.family_to_id)
-        d_model = arch_kwargs.pop("d_model", 384)
+        d_model = arch_kwargs.pop("d_model", 768)   # BGE-base output dim
 
         config = TransformerConfig(
             vocab_size=vocab_size,
