@@ -1,0 +1,139 @@
+\documentclass[12pt]{article}
+\usepackage[landscape,margin=1.6cm]{geometry}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{tgheros}            % clean sans-serif (TeX Gyre Heros / Helvetica)
+\renewcommand{\familydefault}{\sfdefault}
+\pagestyle{empty}
+
+\definecolor{navy}{HTML}{0B2A4A}
+\definecolor{accent}{HTML}{B8860B}
+
+% One slide per page: title rule + heading, then content.
+\newcommand{\slide}[2]{%
+  \begingroup
+  {\color{navy}\Huge\bfseries #1\par}%
+  \vspace{2pt}{\color{accent}\rule{\linewidth}{2pt}}\par
+  \vspace{14pt}\Large #2
+  \endgroup
+  \clearpage}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=10pt, topsep=4pt}
+
+\begin{document}
+
+% ---- Title slide ----
+\thispagestyle{empty}
+\vspace*{2.2cm}
+\begin{center}
+{\color{accent}\large INDUSTRIAL AI --- TRACK 1: LEARNING \& BENCHMARKING PROCESS LOGIC}\par
+\vspace{18pt}
+{\color{navy}\fontsize{34}{40}\selectfont\bfseries Small Transformers for\\[4pt] Semiconductor Process Logic}\par
+\vspace{10pt}{\color{accent}\rule{0.45\linewidth}{2pt}}\par
+\vspace{22pt}
+{\Large Fedja Bogataj \quad$\cdot$\quad Luka Premu\v{s}}\par
+\vspace{6pt}
+{\large zero\_one Hackathon \quad$\cdot$\quad Mentor: Simeon (Infineon)}\par
+\vspace{26pt}
+\begin{minipage}{0.8\linewidth}\centering\large
+We built a family-conditioned GPT decoder that learns fab process-sequence
+logic from synthetic data, initialised its tokens from a BGE sentence encoder,
+and selected the final model with a 9-run orthogonal sweep scored by the
+organizer's own metric.
+\end{minipage}\par
+\vspace{20pt}
+{\normalsize Stack: PyTorch $\cdot$ sentence-transformers (BGE-base) $\cdot$ SLURM on Leonardo (A100) $\cdot$ Weights \& Biases}
+\end{center}
+\clearpage
+
+% ---- Problem ----
+\slide{The Problem --- and why it matters}{
+\begin{itemize}
+  \item A wafer lot is a strict recipe: $\sim$110--150 ordered steps, $\sim$120 step types, fixed block structure, 10 hard ordering rules.
+  \item Three families share a backbone but differ in prep: MOSFET ($\sim$126), IGBT ($\sim$151), IC ($\sim$107).
+  \item High next-step accuracy is easy from local frequencies --- the real test is the \emph{global ordering grammar}.
+  \item A held-out 4th family tests out-of-distribution (OOD) generalisation.
+  \item We optimised for the \textbf{OOD-safe} choice, not the leaderboard.
+\end{itemize}}
+
+% ---- Approach 1 ----
+\slide{Approach (1/3): Model \& semantic init}{
+\begin{itemize}
+  \item One step = one token; modelled autoregressively from \texttt{RECEIVE WAFER LOT} to \texttt{SHIP LOT}.
+  \item Family identity: a learnable embedding summed into every position.
+  \item LM head weight-tied to the token table (halves parameters).
+  \item Token embeddings initialised from \textbf{BAAI/bge-base-en-v1.5} (768-dim): each step = name + description + parameters.
+  \item Clear upgrade over our initial all-MiniLM-L6-v2 on every Task 1/2 metric.
+  \item An unseen 4th-family step lands in the same semantic space.
+\end{itemize}}
+
+% ---- Approach 2 ----
+\slide{Approach (2/3): Disciplined model selection}{
+\begin{itemize}
+  \item \textbf{L9 Taguchi orthogonal sweep}: 9 runs over LR $\{$1e\text{-}4, 3e\text{-}4, 1e\text{-}3$\}$ $\times$ depth $\{$4, 6, 8$\}$ $\times$ regularisation.
+  \item Each factor level appears 3 times --- clean main effects with 1/3 the runs of a full 27-run grid.
+  \item Submitted as a SLURM \texttt{-{}-array=0-8} job.
+  \item \textbf{Best-val-loss checkpointing}: persist lowest-val-loss weights; the loader auto-prefers them.
+  \item Critical for fairness: high-LR configs overfit earlier than low-LR ones.
+\end{itemize}}
+
+% ---- Approach 3 ----
+\slide{Approach (3/3): Scored with the organizer's metric}{
+\begin{itemize}
+  \item Our \texttt{metrics.py} and the organizer's \texttt{eval\_metrics.py} are independent implementations of the same spec.
+  \item We re-scored \emph{every} model with the organizer's scorer and picked the submission from that ranking.
+  \item The two agree exactly on Top-1/3/5, MRR, edit distance, F1, ROC-AUC, rule attribution.
+  \item Only Task 2 token/block accuracy drift $\sim$4--5 pts (uniform normalisation difference; rankings unchanged).
+\end{itemize}}
+
+% ---- Results 1 ----
+\slide{Results (1/3): Final model vs baselines}{
+\begin{center}
+\large
+\begin{tabular}{lccc}
+  \toprule
+  Metric & n-gram & MiniLM-5k & \textbf{bge-r2 (final)} \\
+  \midrule
+  Top-1 next-step $\uparrow$       & 0.6843 & 0.7090 & \textbf{0.7125} \\
+  MRR $\uparrow$                   & 0.8370 & 0.8523 & \textbf{0.8540} \\
+  Norm. edit distance $\downarrow$ & 0.5621 & 0.2166 & \textbf{0.2126} \\
+  Token accuracy $\uparrow$        & 0.3275 & 0.4381 & \textbf{0.4387} \\
+  Block accuracy $\uparrow$        & 0.6235 & 0.6984 & \textbf{0.6988} \\
+  Anomaly ROC-AUC $\uparrow$       & 0.5150 & 0.7940 & \textbf{0.8773} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\vspace{10pt}
+\normalsize Official scorer, canonical hold-out: $n=6000$ (Tasks 1--2), $n=3000$ (Task 3). bge-r2 is the Pareto winner on Tasks 1 + 2.}
+
+% ---- Results 2 ----
+\slide{Results (2/3): Reading the sweep}{
+\begin{itemize}
+  \item Across the 9 BGE runs, ROC-AUC climbs from 0.77 (low LR, 4 layers) to 0.998 (high LR, 8 layers).
+  \item But Task 1/2 metrics favour \emph{low} LR.
+  \item \textbf{r2} (LR 1e-4, 8 layers, dropout 0.1, wd 0.01) takes Top-1, MRR and edit distance \dots
+  \item \dots while keeping ROC-AUC at a healthy 0.8773 --- our \textbf{Pareto pick}.
+  \item Three runs (r4, r5, r7) had saturated anomaly scoring (ROC-AUC 0.5) and were dominated out.
+\end{itemize}}
+
+% ---- Results 3 ----
+\slide{Results (3/3): Honest evidence}{
+\begin{itemize}
+  \item \textbf{F1 = 1.000 is essentially meaningless}: \texttt{IS\_VALID} routes through a symbolic rule checker, so every reasonable model gets perfect F1. ROC-AUC on model confidence is the honest read.
+  \item We \textbf{ruled out} a naive single-config BGE run (Top-1 0.7672): the gap is too large to be anything but in-distribution overfit --- the OOD 4th family would punish it.
+  \item Honest limitation: the sweep ran at \texttt{d\_model=384} (inherited from the MiniLM grid), so BGE's 768-dim embeddings were projected down --- some BGE advantage left on the table, by design, for the OOD-safe pick.
+\end{itemize}}
+
+% ---- Next ----
+\slide{What we'd do with another 36 hours}{
+\begin{itemize}
+  \item \textbf{Evaluate on the hidden 4th family} --- the real OOD test and the payoff of semantic init.
+  \item Re-run the L9 sweep at BGE's native 768-dim (d\_model 768, 12 heads, ff 3072).
+  \item Add per-family and per-rule diagnostics --- an actionable tool for process engineers.
+  \item Revisit the subword tokenizer (parked on \texttt{feat/subword-tokenizer}) with ST-init for OOD transfer.
+  \item All code, the reproducible pipeline, and every run live on branch \texttt{feat/transformer}; experiments tracked in W\&B.
+\end{itemize}}
+
+\end{document}
