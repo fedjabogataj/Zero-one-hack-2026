@@ -135,8 +135,32 @@ class TransformerLM(nn.Module):
                     vecs = proj(vecs)
             with torch.no_grad():
                 model.token_emb.weight[:vocab_size] = vecs
-        # Else (subword): leave the embedding table as random init — subword tokens
-        # don't have meaningful ST vector counterparts.
+        else:
+            # Subword path: average-pool ST vectors for each subword token.
+            # For each subword token, find all step strings whose split contains
+            # that token and average their ST vectors. Specials get random init.
+            all_steps = list(embedder.step_to_idx.keys())
+            emb_dim = embedder.vectors.shape[1]
+            vecs = np.zeros((vocab_size, emb_dim), dtype=np.float32)
+            for tok_id, tok in enumerate(tokenizer.id_to_token):
+                if tok in tokenizer.SPECIAL_TOKENS:
+                    vecs[tok_id] = np.random.normal(0, 0.02, size=emb_dim).astype(np.float32)
+                    continue
+                matching = []
+                for step in all_steps:
+                    if tok in tokenizer.split_step(step):
+                        matching.append(embedder.vectors[embedder.step_to_idx[step]])
+                if matching:
+                    vecs[tok_id] = np.mean(matching, axis=0)
+                else:
+                    vecs[tok_id] = np.random.normal(0, 0.02, size=emb_dim).astype(np.float32)
+            vecs_t = torch.from_numpy(vecs)
+            if vecs_t.shape[1] != d_model:
+                proj = nn.Linear(vecs_t.shape[1], d_model, bias=False)
+                with torch.no_grad():
+                    vecs_t = proj(vecs_t)
+            with torch.no_grad():
+                model.token_emb.weight[:vocab_size] = vecs_t
 
         return model
 
