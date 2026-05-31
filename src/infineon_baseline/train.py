@@ -353,9 +353,10 @@ def train(args: argparse.Namespace) -> int:
         args._resume_wandb_run_id = resume_ckpt.get("wandb_run_id")
 
     # ── Optimizer & scheduler ───────────────────────────────────────────── #
+    weight_decay = getattr(args, "weight_decay", 0.01)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.lr,
-        weight_decay=0.01, betas=(0.9, 0.95),
+        weight_decay=weight_decay, betas=(0.9, 0.95),
     )
     steps_per_epoch = max(1, len(train_loader))
     total_steps = steps_per_epoch * args.epochs
@@ -375,6 +376,7 @@ def train(args: argparse.Namespace) -> int:
     wandb_config = {
         "seed": args.seed,
         "lr": args.lr,
+        "weight_decay": weight_decay,
         "batch_size": args.batch_size,
         "epochs": args.epochs,
         "device": str(device),
@@ -388,9 +390,22 @@ def train(args: argparse.Namespace) -> int:
         "embeddings_path": str(args.embeddings),
         "train_csv": str(args.train),
         "out_path": str(args.out),
+        # Encoder identification surfaces in wandb so MiniLM vs BGE runs
+        # are filterable from the UI without parsing run names.
+        "encoder_tag": os.environ.get("ENCODER", ""),
+        "encoder_model": os.environ.get(
+            "ST_ENCODER_NAME",
+            ""  # filled below from the actual loaded module if blank
+        ),
         **{f"arch.{k}": v for k, v in vars(model.config).items()
            if not k.startswith("_")},
     }
+    if not wandb_config["encoder_model"]:
+        try:
+            from infineon_baseline.embeddings_st import _MODEL_NAME as _enc_name
+            wandb_config["encoder_model"] = _enc_name
+        except Exception:
+            pass
     wandb_run = _init_wandb(args, wandb_config)
     # Capture the wandb run id NOW so periodic checkpoints can record it for
     # future resume cycles (downstream score auto-resume already relied on this).

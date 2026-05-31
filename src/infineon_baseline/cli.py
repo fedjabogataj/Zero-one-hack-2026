@@ -543,6 +543,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--d-model", type=int, default=None, dest="d_model")
     p.add_argument("--n-heads", type=int, default=None, dest="n_heads")
     p.add_argument("--n-layers", type=int, default=None, dest="n_layers")
+    p.add_argument("--ff-dim", type=int, default=None, dest="ff_dim",
+                   help="transformer FFN inner dimension (default: 4 * d_model)")
+    p.add_argument("--dropout", type=float, default=None, dest="dropout",
+                   help="dropout rate (default: TransformerConfig.dropout, i.e. 0.1)")
+    p.add_argument("--weight-decay", type=float, default=0.01, dest="weight_decay",
+                   help="AdamW weight decay (default: 0.01)")
     # Checkpointing — saves a self-contained resumable checkpoint every N epochs
     # plus a final one at training end. Auto-resume kicks in if --out already
     # has a valid in-progress checkpoint.

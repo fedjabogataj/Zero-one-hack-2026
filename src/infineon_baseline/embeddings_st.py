@@ -1,7 +1,9 @@
 """Sentence-transformer-based step embedder.
 
 Encodes each step as: step_name + " " + description + " " + parameters
-using `sentence-transformers/all-MiniLM-L6-v2` (384-dim).
+using a sentence-transformer model. The exact model is selectable via env
+var so different encoders can be benchmarked from the same code without
+edits — see `_resolve_model_name` below.
 
 Public API is identical to `StepEmbedder` so both embedders can be used
 interchangeably. Class name `STStepEmbedder` distinguishes it.
@@ -15,6 +17,7 @@ process.
 from __future__ import annotations
 
 import csv
+import os
 import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,16 +26,40 @@ from typing import Iterable
 import numpy as np
 
 
-_MODEL_NAME = "BAAI/bge-base-en-v1.5"
-# 109M params, 768-dim sentence-embedding model. Meaningfully stronger than
-# the previous all-MiniLM-L6-v2 (22M params, 384-dim) on technical /
-# domain-specific text, while still small enough to encode the 136 step
-# strings in well under a minute on the login node.
+# Short-tag → HF model id mapping. Add new encoders here.
+_ENCODER_TAG_TO_MODEL: dict[str, str] = {
+    "bge":       "BAAI/bge-base-en-v1.5",         # 109M params, 768-dim
+    "bge-large": "BAAI/bge-large-en-v1.5",        # 335M params, 1024-dim
+    "minilm":    "sentence-transformers/all-MiniLM-L6-v2",   # 22M params, 384-dim
+    "mpnet":     "sentence-transformers/all-mpnet-base-v2",  # 110M params, 768-dim
+}
+
+
+def _resolve_model_name() -> str:
+    """Pick the encoder for this process.
+
+    Resolution order (first match wins):
+      1. `ST_ENCODER_NAME` env var — verbatim HF model id (escape hatch)
+      2. `ENCODER` env var matching a known short tag → mapped model id
+      3. Default: BGE-base
+    """
+    explicit = os.environ.get("ST_ENCODER_NAME")
+    if explicit:
+        return explicit
+    tag = os.environ.get("ENCODER", "").strip().lower()
+    if tag and tag in _ENCODER_TAG_TO_MODEL:
+        return _ENCODER_TAG_TO_MODEL[tag]
+    return _ENCODER_TAG_TO_MODEL["bge"]
+
+
+_MODEL_NAME = _resolve_model_name()
+# Resolved once at import time so the choice is stable for the whole process.
+# Override via env vars at job-submission time (see sbatch scripts).
 
 
 @dataclass
 class STStepEmbedder:
-    vectors: np.ndarray           # shape (N_steps, 768)
+    vectors: np.ndarray           # shape (N_steps, D) — D depends on encoder
     step_to_idx: dict[str, int]
     idx_to_step: list[str]
     _row_norms: np.ndarray        # shape (N_steps,) — precomputed L2 norms
@@ -106,10 +133,11 @@ class STStepEmbedder:
         return cls.fit(descriptions_by_step)
 
     def encode(self, step: str) -> np.ndarray:
-        """Return the 384-dim embedding for a step string.
+        """Return the embedding vector for a step string.
 
         Known steps return the cached vector. Unknown steps are encoded
-        on the fly from the step name alone.
+        on the fly from the step name alone (same model, same space).
+        Dimension depends on the encoder selected via env vars.
         """
         idx = self.step_to_idx.get(step)
         if idx is not None:
