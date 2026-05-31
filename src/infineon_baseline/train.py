@@ -213,6 +213,7 @@ def _save_checkpoint(
     wandb_run_id: str | None,
     training_complete: bool,
     tokenizer_kind: str = "flat",
+    known_steps: list[str] | None = None,
 ) -> None:
     """Atomically write a self-contained checkpoint to `out_path`.
 
@@ -253,6 +254,7 @@ def _save_checkpoint(
         "tokenizer_kind": tokenizer_kind,
         "embedder_data": embedder_data,
         "unigram": {fam: dict(ctr) for fam, ctr in unigram.items()},
+        "known_steps": known_steps or [],
         "arch_kwargs": arch_kwargs,
         "wandb_run_id": wandb_run_id,
         # Resume state (only used by train.py)
@@ -324,6 +326,12 @@ def train(args: argparse.Namespace) -> int:
     from infineon_baseline.transformer_model import TransformerLM
 
     corpus = _load_train_split(Path(args.train))
+    known_steps = sorted({
+        step
+        for fam_seqs in corpus.values()
+        for steps in fam_seqs.values()
+        for step in steps
+    })
 
     tokenizer_kind = getattr(args, "tokenizer", "flat")
     is_subword = (tokenizer_kind == "subword")
@@ -548,6 +556,7 @@ def train(args: argparse.Namespace) -> int:
                 wandb_run_id=wandb_run_id,
                 training_complete=is_last,
                 tokenizer_kind=tokenizer_kind,
+                known_steps=known_steps,
             )
             tag = "✓ final" if is_last else "💾"
             print(f"  {tag} checkpoint saved at epoch {epoch} → {out_path}")

@@ -45,6 +45,25 @@ _DTYPE_MAP = {
 }
 
 
+def _levenshtein(a: str, b: str) -> int:
+    """Standard DP Levenshtein distance between two strings."""
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    m, n = len(a), len(b)
+    prev = list(range(n + 1))
+    for i in range(1, m + 1):
+        curr = [i] + [0] * n
+        for j in range(1, n + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 1
+            curr[j] = min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+        prev = curr
+    return prev[n]
+
+
 class TransformerPredictor:
     """Wraps TransformerLM with the NGram interface for use in run_task*."""
 
@@ -69,6 +88,8 @@ class TransformerPredictor:
         self.order = model.config.max_seq_len
         # Detect subword mode from tokenizer duck-type.
         self._is_subword: bool = hasattr(tokenizer, "sep_id")
+        # Known step strings for constrained beam projection. Empty = no constraint.
+        self._known_steps: set[str] = set()
 
         # Precompute per-family vocabulary masks for the FLAT-mode batched
         # top_k path. In subword mode the mask is over subword tokens, which
@@ -87,6 +108,19 @@ class TransformerPredictor:
         fallback = torch.zeros(vocab_plus_pad, dtype=torch.bool, device=device)
         fallback[pad_id] = True
         self._family_mask_fallback = fallback
+
+    def _project_to_known_step(self, candidate: str, known_steps: set[str]) -> str:
+        """Snap a beam-search-generated step string to its nearest known step
+        by Levenshtein edit distance. Tie-break: shortest known step."""
+        if not known_steps or candidate in known_steps:
+            return candidate
+        best_step: str | None = None
+        best_d = float("inf")
+        for k in known_steps:
+            d = _levenshtein(candidate, k)
+            if d < best_d or (d == best_d and best_step is not None and len(k) < len(best_step)):
+                best_d, best_step = d, k
+        return best_step or candidate
 
     @classmethod
     def load(
@@ -158,9 +192,11 @@ class TransformerPredictor:
         model.eval()
 
         unigram = {fam: Counter(ctr) for fam, ctr in ckpt["unigram"].items()}
+        known_steps_raw = ckpt.get("known_steps", [])
         instance = cls(model=model, tokenizer=tokenizer, embedder=embedder,
                        unigram=unigram, device=_device)
         instance._is_subword = (tokenizer_kind == "subword")
+        instance._known_steps = set(known_steps_raw)
         return instance
 
     # ─── OOD aliasing (flat mode only) ────────────────────────────────── #
@@ -474,9 +510,12 @@ class TransformerPredictor:
             top_steps: list[str] = []
             for gen, _lp in finished[ex_idx]:
                 s = tok.decode_step(gen)
-                if s and s not in seen:
-                    seen.add(s)
-                    top_steps.append(s)
+                if s:
+                    if self._known_steps:
+                        s = self._project_to_known_step(s, self._known_steps)
+                    if s not in seen:
+                        seen.add(s)
+                        top_steps.append(s)
                 if len(top_steps) >= k:
                     break
             results.append(top_steps)
