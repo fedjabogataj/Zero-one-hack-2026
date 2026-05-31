@@ -64,12 +64,28 @@ GEN_SEED="${GEN_SEED:-1042}"   # MUST differ from the seed that built training_d
 N_LAYERS="${N_LAYERS:-}"
 D_MODEL="${D_MODEL:-}"
 
+# ─── Encoder identification (for naming only) ──────────────────────────────
+# Short tag that goes into the model filename, ST-embeddings filename, and
+# wandb run name so checkpoints from different encoders coexist on disk and
+# are visually distinct in the wandb UI. The *actual* encoder is set in
+# src/infineon_baseline/embeddings_st.py's _MODEL_NAME constant; this var
+# only labels artifacts.
+#
+# Suggested values:
+#   ENCODER=bge      ← BAAI/bge-base-en-v1.5  (current default in code)
+#   ENCODER=minilm   ← sentence-transformers/all-MiniLM-L6-v2  (previous)
+#   ENCODER=bge-large ← BAAI/bge-large-en-v1.5
+#   ENCODER=mpnet    ← sentence-transformers/all-mpnet-base-v2
+ENCODER="${ENCODER:-bge}"
+
 CANONICAL_DATA="training_data"                       # the original 1000/family — TEST source
 CANONICAL_TEST="outputs/eval_canonical"              # built once from CANONICAL_DATA
 TRAIN_DATA_DIR="training_data_${DATA_SIZE}"          # synthetic — TRAIN source
 TRAIN_POOL_DIR="outputs/train_pool_${DATA_SIZE}"     # train_split.csv + internal val
-MODEL_OUT="outputs/models/transformer_${DATA_SIZE}.pt"
-ST_EMB="outputs/models/st_step_embeddings.pkl"
+# Encoder-tagged paths: avoids accidentally training BGE on top of MiniLM
+# embeddings (or overwriting one model with another's checkpoint).
+MODEL_OUT="outputs/models/transformer_${DATA_SIZE}_${ENCODER}.pt"
+ST_EMB="outputs/models/st_step_embeddings_${ENCODER}.pkl"
 
 # ─── Self-describing wandb run name ────────────────────────────────────────
 # Encodes everything that distinguishes this run from another so the wandb
@@ -92,7 +108,8 @@ else
     SIZE_LABEL="$DATA_SIZE"
 fi
 
-DEFAULT_RUN_NAME="xfmr-train${SIZE_LABEL}-${EPOCHS}ep-bs${BATCH_SIZE}"
+# Encoder tag is part of the name so BGE-vs-MiniLM runs are visually distinct.
+DEFAULT_RUN_NAME="xfmr-${ENCODER}-train${SIZE_LABEL}-${EPOCHS}ep-bs${BATCH_SIZE}"
 [[ -n "$N_LAYERS" ]]              && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-L${N_LAYERS}"
 [[ -n "$D_MODEL"  ]]              && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-d${D_MODEL}"
 [[ "$LR"       != "3e-4" ]]       && DEFAULT_RUN_NAME="${DEFAULT_RUN_NAME}-lr${LR}"
