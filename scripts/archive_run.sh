@@ -107,6 +107,15 @@ for MODEL in "${MODELS[@]}"; do
     cp "$SRC_SUBMISSIONS"/task*.meta.json "$DEST/submissions/" 2>/dev/null || true
 
     if $INCLUDE_MODEL; then
+        # If a .best.pt sibling exists, archive THAT one — it carries the
+        # lowest-val-loss weights, which is the model we want to ship.
+        if [[ "$MODEL" == *.pt && "$MODEL" != *.best.pt ]]; then
+            BEST_SIBLING="${MODEL%.pt}.best.pt"
+            if [[ -f "$BEST_SIBLING" ]]; then
+                echo "    using best-val-loss sibling: $(basename "$BEST_SIBLING")"
+                MODEL="$BEST_SIBLING"
+            fi
+        fi
         MODEL_EXT="${MODEL##*.}"
         if [[ "$MODEL_EXT" == "pt" ]]; then
             # Strip optimizer/scheduler/resume state — the archived file is the

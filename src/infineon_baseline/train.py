@@ -244,6 +244,55 @@ def _save_checkpoint(
     tmp.replace(out_path)
 
 
+def _save_best_checkpoint(
+    out_path: Path,
+    *,
+    best_state_dict: dict,
+    config_vars: dict,
+    tokenizer,
+    embedder,
+    unigram,
+    arch_kwargs: dict,
+    best_epoch: int,
+    best_val_loss: float,
+    wandb_run_id: str | None,
+) -> None:
+    """Write an inference-only checkpoint containing the best-val-loss weights.
+
+    Format matches what TransformerPredictor.load() expects, minus the resume
+    state (optimizer/scheduler/step counters). Includes `best_epoch` and
+    `best_val_loss` for provenance. Atomic write via .tmp + rename.
+    """
+    tokenizer_data = {
+        "id_to_step": tokenizer.id_to_step,
+        "family_to_id": tokenizer.family_to_id,
+    }
+    embedder_data = pickle.dumps({
+        "vectors": embedder.vectors,
+        "step_to_idx": embedder.step_to_idx,
+        "idx_to_step": embedder.idx_to_step,
+        "row_norms": embedder._row_norms,
+    })
+    payload = {
+        "config": config_vars,
+        "state_dict": best_state_dict,
+        "tokenizer_data": tokenizer_data,
+        "embedder_data": embedder_data,
+        "unigram": {fam: dict(ctr) for fam, ctr in unigram.items()},
+        "arch_kwargs": arch_kwargs,
+        "wandb_run_id": wandb_run_id,
+        "best_epoch": best_epoch,
+        "best_val_loss": best_val_loss,
+        "training_complete": True,
+        "checkpoint_kind": "best",
+    }
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_suffix(out_path.suffix + ".tmp")
+    torch.save(payload, tmp)
+    tmp.replace(out_path)
+
+
 def _try_load_resume_state(out_path: Path) -> dict | None:
     """Return the resume dict from `out_path` if it looks resume-able, else None.
 
@@ -426,6 +475,12 @@ def train(args: argparse.Namespace) -> int:
         global_step = 0
         best_val_loss = float("inf")
 
+    # Track the lowest-val-loss model weights in memory so we can persist them
+    # separately at the end (the main checkpoint always reflects the FINAL
+    # epoch's weights for resume; here we keep what's best for inference).
+    best_state_dict: dict | None = None
+    best_epoch: int = 0
+
     checkpoint_every = max(1, getattr(args, "checkpoint_every", 1))
     train_start = time.time()
 
@@ -494,16 +549,26 @@ def train(args: argparse.Namespace) -> int:
 
         # End-of-epoch val pass + log.
         epoch_val_loss = _eval(model, val_loader, criterion, device)
-        if epoch_val_loss < best_val_loss:
+        improved = epoch_val_loss < best_val_loss
+        if improved:
             best_val_loss = epoch_val_loss
+            best_epoch = epoch
+            # CPU snapshot so GPU memory isn't held hostage to old weights.
+            best_state_dict = {
+                k: v.detach().cpu().clone() for k, v in model.state_dict().items()
+            }
         _wandb_log(wandb_run, {
             "epoch/train_loss_avg": avg_loss,
             "epoch/val_loss": epoch_val_loss,
             "epoch/val_perplexity": math.exp(min(epoch_val_loss, 50.0)),
             "epoch/tokens_per_sec": tok_per_s,
             "epoch/seconds": elapsed,
+            "epoch/best_val_loss": best_val_loss,
+            "epoch/best_epoch": best_epoch,
             "epoch": epoch,
         }, step=global_step)
+        if improved:
+            print(f"  📈 new best val_loss {best_val_loss:.4f} at epoch {best_epoch}")
 
         # ── Periodic checkpoint (so a SLURM walltime kill doesn't lose work) ─
         # `training_complete` is True only on the very last epoch; until then
@@ -543,6 +608,33 @@ def train(args: argparse.Namespace) -> int:
         _wandb_log(wandb_run, {"final/checkpoint_size_mb": ckpt_mb})
     except Exception:
         pass
+
+    # Persist the best-val-loss weights as `<MODEL_OUT>.best.pt` (sibling of
+    # the resume checkpoint). TransformerPredictor.load() auto-prefers this
+    # file when present, so downstream eval picks up the best epoch with no
+    # caller changes. If best_epoch == final epoch we still write the file
+    # (slight redundancy, but keeps the inference path uniform).
+    if best_state_dict is not None:
+        best_path = out_path.with_name(out_path.stem + ".best.pt")
+        _save_best_checkpoint(
+            best_path,
+            best_state_dict=best_state_dict,
+            config_vars=vars(model.config),
+            tokenizer=tokenizer,
+            embedder=embedder,
+            unigram=unigram,
+            arch_kwargs=arch_kwargs,
+            best_epoch=best_epoch,
+            best_val_loss=best_val_loss,
+            wandb_run_id=wandb_run_id,
+        )
+        print(f"✓ best checkpoint (epoch {best_epoch}, val_loss "
+              f"{best_val_loss:.4f}) → {best_path}")
+        _wandb_log(wandb_run, {
+            "final/best_epoch": best_epoch,
+            "final/epochs_after_best": args.epochs - best_epoch,
+        })
+
     _wandb_finish(wandb_run)
     return 0
 

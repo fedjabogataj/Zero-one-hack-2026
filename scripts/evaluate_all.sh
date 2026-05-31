@@ -62,10 +62,19 @@ for f in "$EVAL_VALID" "$EVAL_ANOMALY" "$GT_VALID" "$GT_ANOMALY"; do
 done
 
 # ─── Collect models ────────────────────────────────────────────────────────
+# Note: when auto-discovering, we EXCLUDE *.best.pt files. Those are
+# inference-only sibling checkpoints that TransformerPredictor.load() picks
+# up automatically when given the main MODEL.pt path — listing both here
+# would double-evaluate the same run.
 if [[ $# -gt 0 ]]; then
     MODELS=("$@")
 else
-    MODELS=(outputs/models/transformer*.pt outputs/models/ngram*.pkl)
+    MODELS=()
+    for p in outputs/models/transformer*.pt outputs/models/ngram*.pkl; do
+        [[ -e "$p" ]] || continue
+        [[ "$p" == *.best.pt ]] && continue
+        MODELS+=("$p")
+    done
 fi
 
 if [[ ${#MODELS[@]} -eq 0 ]]; then

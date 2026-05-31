@@ -104,6 +104,17 @@ class TransformerPredictor:
             precision = "bf16" if _device.type == "cuda" else "fp32"
         dtype = _DTYPE_MAP[precision]
 
+        # Auto-prefer the best-val-loss sibling, if one exists. train.py writes
+        # `<MODEL>.best.pt` next to `<MODEL>.pt` containing the lowest-val-loss
+        # weights — for inference we want those, not the final-epoch weights.
+        # If the caller already pointed at a .best.pt path, leave it alone.
+        path = Path(path)
+        if path.suffix == ".pt" and not path.name.endswith(".best.pt"):
+            best_sibling = path.with_name(path.stem + ".best.pt")
+            if best_sibling.exists():
+                print(f"📈 using best-val-loss checkpoint: {best_sibling.name}")
+                path = best_sibling
+
         ckpt = torch.load(path, map_location=_device, weights_only=False)
 
         # Reconstruct tokenizer from embedded data.
