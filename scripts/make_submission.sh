@@ -90,7 +90,11 @@ _check_submission() {
     fi
     local actual_rows actual_cols
     actual_rows=$(($(wc -l < "$file") - 1))
-    actual_cols=$(head -1 "$file")
+    # Python csv.writer emits RFC-standard \r\n line endings even on Unix.
+    # head -1 captures the trailing \r as part of the line, which would
+    # make the column-header comparison false-negative against our LF-only
+    # expected string. Strip \r before comparing.
+    actual_cols=$(head -1 "$file" | tr -d '\r')
     if [[ "$actual_rows" != "$expected_rows" || "$actual_cols" != "$expected_cols" ]]; then
         echo "    ✗ $label  EXPECTED rows=$expected_rows cols=$expected_cols"
         echo "                ACTUAL   rows=$actual_rows cols=$actual_cols"
