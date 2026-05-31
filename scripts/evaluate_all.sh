@@ -6,17 +6,29 @@
 #   ./scripts/evaluate_all.sh                                 # auto-discovers all models
 #   ./scripts/evaluate_all.sh outputs/models/transformer.pt outputs/models/transformer_5000.pt
 #   EVAL_DIR=outputs/eval_5000 ./scripts/evaluate_all.sh      # override eval set
+#   FORCE=1 ./scripts/evaluate_all.sh                         # re-eval even if cached
 #
 # Eval set defaults to outputs/eval/ (the original 1k-derived set) so
 # comparisons across different data-size models are apples-to-apples — every
 # model is scored on the same held-out sequences.
 #
 # Per model, this script:
-#   1. runs `predict` for next-step, complete, anomaly (writes submission CSVs)
-#   2. runs `score` for each (writes JSON reports, auto-resumes the matching
+#   1. checks if `outputs/reports/<tag>/task{1,2,3}.json` all exist AND are
+#      newer than the model file → skip (with `⏭` log line). Pass FORCE=1
+#      to override the cache check and re-evaluate everything.
+#   2. otherwise runs `predict` for next-step/complete/anomaly (writes
+#      submission CSVs)
+#   3. runs `score` for each (writes JSON reports, auto-resumes the matching
 #      wandb run via the .meta.json sibling)
-#   3. organises outputs under outputs/{submissions,reports}/<tag>/
-# Then it parses every report.json into a single comparison table.
+#   4. organises outputs under outputs/{submissions,reports}/<tag>/
+# Then it parses every report.json into a single comparison table — cached
+# AND newly-evaluated models all appear together.
+#
+# Model loading: when a `<tag>.best.pt` sibling exists next to `<tag>.pt`,
+# TransformerPredictor.load() auto-prefers it (lowest-val-loss weights,
+# not the final-epoch weights). The cache freshness check uses the
+# .best.pt's mtime when present so re-training invalidates the cache
+# correctly.
 
 set -euo pipefail
 shopt -s nullglob   # let globs expand to empty if no match (instead of literal string)
@@ -85,8 +97,14 @@ fi
 echo "[$(date '+%H:%M:%S')] evaluating ${#MODELS[@]} model(s) against $EVAL_DIR/"
 echo
 
+# FORCE=1 re-evaluates every model even if cached reports exist.
+# Default: skip a model when all 3 task report JSONs are already present
+# AND newer than the model file (which is what would be loaded).
+FORCE="${FORCE:-0}"
+
 # ─── Loop: predict + score per model ───────────────────────────────────────
 TAGS=()
+N_SKIPPED=0
 for MODEL in "${MODELS[@]}"; do
     if [[ ! -f "$MODEL" ]]; then
         echo "⚠ skipping $MODEL (not found)"; continue
@@ -98,6 +116,29 @@ for MODEL in "${MODELS[@]}"; do
     SUB_DIR="outputs/submissions/$TAG"
     REP_DIR="outputs/reports/$TAG"
     mkdir -p "$SUB_DIR" "$REP_DIR"
+
+    # ── Skip if already evaluated ─────────────────────────────────────────
+    # An eval is "complete" iff all 3 task reports exist and were written
+    # AFTER the model artifact (so a re-trained model invalidates the cache).
+    # For transformer models, the loader auto-prefers the .best.pt sibling,
+    # so we use whichever exists as the freshness reference.
+    REF_MODEL="$MODEL"
+    if [[ "$MODEL" == *.pt && "$MODEL" != *.best.pt ]]; then
+        BEST_SIBLING="${MODEL%.pt}.best.pt"
+        [[ -f "$BEST_SIBLING" ]] && REF_MODEL="$BEST_SIBLING"
+    fi
+    if [[ "$FORCE" != "1" \
+          && -f "$REP_DIR/task1.json" \
+          && -f "$REP_DIR/task2.json" \
+          && -f "$REP_DIR/task3.json" \
+          && "$REP_DIR/task1.json" -nt "$REF_MODEL" \
+          && "$REP_DIR/task2.json" -nt "$REF_MODEL" \
+          && "$REP_DIR/task3.json" -nt "$REF_MODEL" ]]; then
+        echo "⏭  skipping $TAG — cached reports already exist (FORCE=1 to override)"
+        N_SKIPPED=$((N_SKIPPED + 1))
+        echo
+        continue
+    fi
 
     echo "──────────────────────────────────────────────────────────────────"
     echo " $TAG  ($MODEL)"
@@ -147,6 +188,10 @@ for MODEL in "${MODELS[@]}"; do
 done
 
 # ─── Comparison table ──────────────────────────────────────────────────────
+if (( N_SKIPPED > 0 )); then
+    echo "[$(date '+%H:%M:%S')] skipped $N_SKIPPED model(s) with cached reports (pass FORCE=1 to re-evaluate)"
+    echo
+fi
 echo "═══════════════════════════════════════════════════════════════════════"
 echo "MODEL COMPARISON SUMMARY  (eval set: $EVAL_DIR/)"
 echo "═══════════════════════════════════════════════════════════════════════"
