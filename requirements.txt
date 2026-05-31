@@ -1,0 +1,12 @@
+# Runtime dependencies for the Industrial AI (Track 1) submission.
+# Mirrors pyproject.toml; pip install -e . is the canonical install,
+# but a flat requirements.txt is provided per the submission spec.
+#
+# For dev/test extras: pip install pytest>=8.0
+# For wandb tracking:  pip install wandb>=0.16
+
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+torch>=2.1
+sentence-transformers>=2.5
