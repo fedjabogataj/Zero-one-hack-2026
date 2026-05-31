@@ -290,18 +290,24 @@ def run_task3(
                     len(tokenizer.encode_step(s)) + 1 for s in steps
                 ))
                 per_tok_lp = lp / n_tokens
-                # Decision uses raw per-token lp vs threshold (same units).
-                is_valid_flag = int(per_tok_lp >= threshold)
-                # SCORE column in the submission must be in [0,1] — sigmoid
-                # the gap between observed per-token lp and the threshold.
-                # Higher = more likely valid; ROC-AUC reads this column.
+                # SCORE column in [0,1] — sigmoid of gap vs threshold.
                 score_norm = _sigmoid(per_tok_lp - threshold)
-                yield Task3Row(
-                    example_id=ex["EXAMPLE_ID"],
-                    is_valid=is_valid_flag,
-                    score=float(score_norm),
-                    predicted_rule="PERPLEXITY" if not is_valid_flag else "",
-                )
+                if strategy == "perplexity":
+                    is_valid_flag = int(per_tok_lp >= threshold)
+                    yield Task3Row(
+                        example_id=ex["EXAMPLE_ID"],
+                        is_valid=is_valid_flag,
+                        score=float(score_norm),
+                        predicted_rule="PERPLEXITY" if not is_valid_flag else "",
+                    )
+                else:  # "hybrid": oracle decides validity, perplexity gives score
+                    oracle = detect_oracle(ex["SEQUENCE"].split("|"))
+                    yield Task3Row(
+                        example_id=ex["EXAMPLE_ID"],
+                        is_valid=oracle.is_valid,
+                        score=float(score_norm),
+                        predicted_rule=oracle.predicted_rule,
+                    )
         return
 
     # ── flat + batched ───────────────────────────────────────────────── #
@@ -345,15 +351,21 @@ def run_task3(
                 len(tokenizer.encode_step(s)) + 1 for s in steps
             ))
             per_tok_lp = lp / n_tokens
-            is_valid_flag = int(per_tok_lp >= threshold)
-            # Same sigmoid normalisation as the batched subword path so
-            # SCORE lands in [0,1] for the submission writer + ROC-AUC.
             score_norm = _sigmoid(per_tok_lp - threshold)
-            res = AnomalyResult(
-                is_valid=is_valid_flag,
-                score=float(score_norm),
-                predicted_rule="PERPLEXITY" if not is_valid_flag else "",
-            )
+            if strategy == "perplexity":
+                is_valid_flag = int(per_tok_lp >= threshold)
+                res = AnomalyResult(
+                    is_valid=is_valid_flag,
+                    score=float(score_norm),
+                    predicted_rule="PERPLEXITY" if not is_valid_flag else "",
+                )
+            else:  # "hybrid"
+                oracle = detect_oracle(steps)
+                res = AnomalyResult(
+                    is_valid=oracle.is_valid,
+                    score=float(score_norm),
+                    predicted_rule=oracle.predicted_rule,
+                )
         elif strategy == "perplexity":
             res = detect_perplexity(steps, family, tokenizer, ngram, threshold)
         elif strategy == "hybrid":
