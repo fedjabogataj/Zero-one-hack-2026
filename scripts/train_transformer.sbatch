@@ -7,7 +7,7 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --mem=120GB
 #SBATCH --cpus-per-task=8
-#SBATCH --time=2:00:00
+#SBATCH --time=3:00:00
 #SBATCH --output=outputs/slurm/%x-%j.out
 #SBATCH --error=outputs/slurm/%x-%j.err
 #
@@ -57,13 +57,19 @@ export WANDB_MODE="${WANDB_MODE:-online}"
 
 # ─── Tunable params + derived paths ─────────────────────────────────────────
 DATA_SIZE="${DATA_SIZE:-5000}"
-EPOCHS="${EPOCHS:-30}"
+TOKENIZER="${TOKENIZER:-flat}"   # "flat" = one id per step; "subword" = word-level split + <sep>
+# Subword sequences are ~3x longer per step -> use more epochs by default.
+# User-supplied EPOCHS overrides this default.
+if [[ "$TOKENIZER" == "subword" ]]; then
+    EPOCHS="${EPOCHS:-60}"
+else
+    EPOCHS="${EPOCHS:-30}"
+fi
 BATCH_SIZE="${BATCH_SIZE:-64}"
 LR="${LR:-3e-4}"
 GEN_SEED="${GEN_SEED:-1042}"   # MUST differ from the seed that built training_data/
 N_LAYERS="${N_LAYERS:-}"
 D_MODEL="${D_MODEL:-}"
-TOKENIZER="${TOKENIZER:-flat}"   # "flat" = one id per step; "subword" = word-level split + <sep>
 
 CANONICAL_DATA="training_data"                       # the original 1000/family — TEST source
 CANONICAL_TEST="outputs/eval_canonical"              # built once from CANONICAL_DATA
